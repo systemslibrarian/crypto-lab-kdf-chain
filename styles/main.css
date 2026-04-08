@@ -40,7 +40,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 }
 
 /* ---- Light mode ---- */
-:root.light {
+[data-theme="light"] {
   --bg:          #ffffff;
   --bg-panel:    #f6f8fa;
   --bg-input:    #ffffff;
@@ -145,13 +145,10 @@ body {
 
 /* ---- Theme toggle ---- */
 .theme-toggle {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text);
-  width: 44px; height: 44px;
+  width: 2.6rem; height: 2.6rem;
   border-radius: 50%;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;

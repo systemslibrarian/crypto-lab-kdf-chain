@@ -505,18 +505,24 @@ function buildSaltPanel(): HTMLElement {
 /* ------------------------------------------------------------------ */
 
 function buildThemeToggle(): HTMLElement {
+  const isDark = () => document.documentElement.getAttribute('data-theme') !== 'light';
+
   const btn = el('button', {
     className: 'theme-toggle',
-    'aria-label': 'Toggle dark and light mode',
+    'aria-label': isDark() ? 'Switch to light mode' : 'Switch to dark mode',
     id: 'theme-toggle',
   });
-  btn.innerHTML = '<span class="theme-icon" aria-hidden="true">☀</span>';
+  btn.setAttribute('style', 'position: absolute; top: 0; right: 0');
+  btn.textContent = isDark() ? '🌙' : '☀️';
+
   btn.addEventListener('click', () => {
-    document.documentElement.classList.toggle('light');
-    const isLight = document.documentElement.classList.contains('light');
-    btn.innerHTML = `<span class="theme-icon" aria-hidden="true">${isLight ? '☾' : '☀'}</span>`;
-    btn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+    const newTheme = isDark() ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    btn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+    btn.setAttribute('aria-label', newTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
   });
+
   return btn;
 }
 

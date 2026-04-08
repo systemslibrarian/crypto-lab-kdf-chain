@@ -4,25 +4,39 @@ HKDF · PBKDF2 · scrypt · Argon2id · HMAC-SHA-256
 
 Live demo: https://systemslibrarian.github.io/crypto-lab-kdf-chain/
 
-## Overview
+## What It Is
 
-crypto-lab-kdf-chain is a browser-based interactive demonstration of four key derivation functions: HKDF, PBKDF2, scrypt, and Argon2id. It is built to show how each construction works, what security problem it solves, where it fails, and why choosing the wrong KDF still causes real-world compromise.
+crypto-lab-kdf-chain is an interactive browser demo of four key derivation functions: HKDF (RFC 5869), PBKDF2 (RFC 8018), scrypt (RFC 7914), and Argon2id (RFC 9106). It shows what security problem each KDF solves, how their parameters affect cost, and why choosing the wrong one leads to real-world compromise. All four operate under a symmetric security model — they transform shared secrets or passwords into derived key material using HMAC-SHA-256 as the underlying pseudorandom function. The demo is entirely client-side: HKDF and PBKDF2 use the WebCrypto API; scrypt and Argon2id use @noble/hashes.
 
-The demo is entirely client-side. HKDF and PBKDF2 use the WebCrypto API. scrypt and Argon2id use @noble/hashes. Benchmarks are measured in the browser with real performance.now timings instead of static numbers.
+## When to Use It
 
-## KDFs Covered
+- **You need to teach or learn what KDFs actually do** — the demo derives real keys with real timing so you can see how iteration count, memory cost, and salt affect output and performance.
+- **You are choosing between HKDF, PBKDF2, scrypt, and Argon2id** — the built-in decision tree walks through input entropy, multi-key derivation, and FIPS constraints to recommend the right KDF.
+- **You want to demonstrate why salt matters** — the salt panel shows identical passwords producing identical output without salt and independent output with salt, making rainbow-table risk concrete.
+- **You need to benchmark KDF cost in a specific browser** — PBKDF2 iteration benchmarks and scrypt N-value comparisons use real `performance.now()` timing on whatever hardware you run.
+- **Do not use this demo for production key derivation** — it runs in a browser with no secure memory management, no constant-time guarantees, and user-supplied parameters that may be too weak.
 
-- HKDF per RFC 5869 for extract-and-expand key derivation from high-entropy input material.
-- PBKDF2 per RFC 8018 for password stretching in legacy and FIPS-constrained environments.
-- scrypt per RFC 7914 for memory-hard password stretching where Argon2id is unavailable.
-- Argon2id per RFC 9106 as the modern default for new password storage systems.
+## Live Demo
 
-## Primitives Used
+[https://systemslibrarian.github.io/crypto-lab-kdf-chain/](https://systemslibrarian.github.io/crypto-lab-kdf-chain/)
 
-- WebCrypto SubtleCrypto.deriveBits for PBKDF2.
-- WebCrypto HMAC-SHA-256 for RFC 5869 HKDF extract and expand.
-- @noble/hashes scrypt implementation for RFC 7914.
-- @noble/hashes Argon2id implementation for RFC 9106.
+The demo has six interactive panels. You can derive HKDF keys by entering IKM, salt, info string, and output length; derive PBKDF2 keys with configurable iterations and compare SHA-256 vs SHA-512 timing; tune scrypt N/r/p parameters and compare memory cost at different N values; derive Argon2id keys with adjustable time cost, memory cost, and parallelism; run a decision tree that recommends a KDF based on your constraints; and run salt and context-binding demonstrations that show rainbow-table vulnerability, salt protection, HKDF context binding, and domain separation.
+
+## What Can Go Wrong
+
+- **Using HKDF for passwords** — HKDF assumes high-entropy input key material. Fed a low-entropy password, it provides no stretching, and an attacker can brute-force the output at near-hash speed.
+- **Low PBKDF2 iteration count** — PBKDF2 is embarrassingly parallel; GPUs can test millions of passwords per second. Below 600,000 iterations (OWASP minimum for PBKDF2-HMAC-SHA-256), offline attacks become trivially cheap.
+- **Omitting salt** — any KDF without a unique random salt maps identical passwords to identical outputs, enabling precomputed rainbow-table and multi-target attacks across an entire credential database.
+- **Under-provisioning scrypt memory (low N)** — scrypt's security depends on requiring large sequential memory reads. If N is too low, the memory-hardness guarantee disappears and GPU/ASIC attacks become practical.
+- **Reusing HKDF info strings across contexts** — HKDF derives cryptographically independent keys only when the info string differs. Reusing the same info for encryption and MAC keys destroys domain separation and can enable key-reuse attacks.
+
+## Real-World Usage
+
+- **TLS 1.3** — uses HKDF-Expand and HKDF-Extract (RFC 5869) as the key schedule to derive handshake and application traffic keys from the shared secret.
+- **Signal Protocol** — uses HKDF with distinct info strings to derive root keys, chain keys, and message keys in the Double Ratchet, providing forward secrecy and domain separation.
+- **WireGuard** — uses HKDF in its Noise IK handshake to extract and expand chaining keys and transport data keys from each Diffie-Hellman output.
+- **1Password / Bitwarden** — use PBKDF2-HMAC-SHA-256 (or Argon2id in newer configurations) to stretch the user's master password into an encryption key for the vault.
+- **Linux libsodium (pwhash)** — uses Argon2id as the default password hashing algorithm, with tunable time and memory cost, to protect stored credentials against GPU and ASIC attacks.
 
 ## Running Locally
 
@@ -43,21 +57,6 @@ For GitHub Pages deployment:
 npm run deploy
 ```
 
-## Security Notes
-
-- Never use HKDF for passwords. HKDF assumes the input key material already has high entropy.
-- Never use an unsalted KDF for password storage. Identical passwords must not produce identical stored outputs.
-- Argon2id is the correct default for new password storage systems.
-- PBKDF2 remains acceptable for legacy and FIPS-constrained systems, but OWASP recommends at least 600,000 iterations for PBKDF2-HMAC-SHA-256.
-
-## Accessibility
-
-The interface is built for WCAG 2.1 AA conformance with keyboard navigation, visible focus states, descriptive labels, live-region status updates, reduced-motion support, and screen-reader-friendly structure throughout the demo.
-
-## Why This Matters
-
-Billions of leaked passwords are still cracked because developers chose the wrong KDF, chose too few iterations, or stored unsalted hashes. In 2026, low-iteration PBKDF2 and unsalted legacy digests still show up in breach disclosures. The difference between HKDF, PBKDF2, scrypt, and Argon2id is not academic; it determines how expensive an attacker’s offline search becomes.
-
 ## Related Demos
 
 - https://systemslibrarian.github.io/crypto-lab/
@@ -66,4 +65,4 @@ Billions of leaked passwords are still cracked because developers chose the wron
 - https://systemslibrarian.github.io/crypto-lab-mac-race/
 - https://github.com/systemslibrarian/crypto-compare
 
-So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31
+> *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
