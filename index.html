@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive browser demo comparing HKDF, PBKDF2, scrypt, and Argon2id with real timing, RFC references, and accessibility-first design."
+    />
+    <title>crypto-lab-kdf-chain</title>
+    <script type="module" crossorigin src="/crypto-lab-kdf-chain/assets/index-D_btjRms.js"></script>
+    <link rel="stylesheet" crossorigin href="/crypto-lab-kdf-chain/assets/index-DXQnLKAD.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+  </html>
