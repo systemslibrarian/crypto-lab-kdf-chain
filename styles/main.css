@@ -612,6 +612,395 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ================================================================ */
+/*  Select (attacker target)                                        */
+/* ================================================================ */
+
+select.input-field {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+                    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+/* ================================================================ */
+/*  Attacker-cost box                                               */
+/* ================================================================ */
+
+.attack-group {
+  margin-top: 1rem;
+}
+
+.attack-out {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--error) 8%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--error) 40%, var(--border));
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  overflow-x: auto;
+}
+
+/* ================================================================ */
+/*  KDF chain flow                                                  */
+/* ================================================================ */
+
+.chain-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+
+.chain-node {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chain-root {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}
+
+.chain-leaf {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, var(--bg));
+}
+
+.chain-node-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chain-node-value {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+  word-break: break-all;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.chain-node-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chain-arrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.chain-arrow-glyph {
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.chain-arrow-label {
+  font-family: var(--font-mono);
+}
+
+.chain-fanout {
+  display: grid;
+  gap: 0.5rem;
+}
+
+@media (min-width: 600px) {
+  .chain-fanout {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+/* ================================================================ */
+/*  Cost comparison bars                                            */
+/* ================================================================ */
+
+.cost-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cost-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.cost-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.cost-ms {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.cost-track {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  height: 1.5rem;
+  overflow: hidden;
+}
+
+.cost-fill {
+  height: 100%;
+  background: var(--accent-dim);
+  border-radius: var(--radius) 0 0 var(--radius);
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.cost-fill-warn {
+  background: var(--warning);
+}
+
+.cost-attack {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ================================================================ */
+/*  RFC test-vector results                                         */
+/* ================================================================ */
+
+.vectors-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.vector-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: var(--bg);
+}
+
+.vector-pass {
+  border-left: 3px solid var(--success);
+}
+
+.vector-fail {
+  border-left: 3px solid var(--error);
+}
+
+.vector-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.vector-badge {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vector-pass .vector-badge { color: var(--success); }
+.vector-fail .vector-badge { color: var(--error); }
+
+.vector-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.vector-detail {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+}
+
+/* ================================================================ */
+/*  Guided path                                                     */
+/* ================================================================ */
+
+.guide-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 1rem;
+}
+
+.guide-section h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.guide-intro {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.guide-steps {
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 700px) {
+  .guide-steps {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.guide-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  text-decoration: none;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  min-height: 44px;
+  height: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.guide-step:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
+}
+
+.guide-num {
+  flex: 0 0 auto;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.guide-step-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.guide-step-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ================================================================ */
+/*  Memory-hardness visual                                          */
+/* ================================================================ */
+
+.mem-grids {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+@media (min-width: 640px) {
+  .mem-grids {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.mem-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--bg);
+}
+
+.mem-card h3 {
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.mem-caption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-top: 0.6rem;
+}
+
+.mem-cores {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+}
+
+.mem-core {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--success);
+  opacity: 0.85;
+}
+
+.mem-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+
+.mem-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.2s ease;
+}
+
+.mem-cell.filled {
+  background: var(--accent);
+}
+
+/* ================================================================ */
 /*  Responsive — nothing below 14px, base 16px                     */
 /* ================================================================ */
 

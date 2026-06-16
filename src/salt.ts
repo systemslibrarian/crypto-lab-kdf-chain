@@ -1,8 +1,8 @@
 /**
  * Salt and Context Binding demos — Panel 6
  */
-import { pbkdf2Sha256 } from './pbkdf2';
-import { hkdf } from './hkdf';
+import { pbkdf2Sha256 } from './pbkdf2.ts';
+import { hkdf } from './hkdf.ts';
 
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);

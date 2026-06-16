@@ -20,7 +20,11 @@ crypto-lab-kdf-chain is an interactive browser demo of four key derivation funct
 
 [https://systemslibrarian.github.io/crypto-lab-kdf-chain/](https://systemslibrarian.github.io/crypto-lab-kdf-chain/)
 
-The demo has six interactive panels. You can derive HKDF keys by entering IKM, salt, info string, and output length; derive PBKDF2 keys with configurable iterations and compare SHA-256 vs SHA-512 timing; tune scrypt N/r/p parameters and compare memory cost at different N values; derive Argon2id keys with adjustable time cost, memory cost, and parallelism; run a decision tree that recommends a KDF based on your constraints; and run salt and context-binding demonstrations that show rainbow-table vulnerability, salt protection, HKDF context binding, and domain separation.
+A **guided path** at the top walks newcomers through the demo in six ordered steps; experienced users can jump straight to any panel.
+
+The demo has ten interactive panels. You can derive HKDF keys by entering IKM, salt, info string, and output length; derive PBKDF2 keys with configurable iterations and compare SHA-256 vs SHA-512 timing; tune scrypt N/r/p parameters and compare memory cost at different N values; derive Argon2id keys with adjustable time cost, memory cost, and parallelism; see a **memory-hardness visual** that explains why scrypt and Argon2id defeat GPUs where PBKDF2 fails; run the **KDF chain** (Argon2id → HKDF-Expand fan-out) that turns one password into multiple domain-separated keys; run a **cost comparison** that pushes one password through every KDF and renders both your derivation time and the attacker's projected offline crack time; run a decision tree that recommends a KDF based on your constraints; run salt and context-binding demonstrations that show rainbow-table vulnerability, salt protection, HKDF context binding, and domain separation; and run **RFC known-answer tests** that recompute published RFC 5869 and RFC 7914 vectors in your browser and check them byte-for-byte.
+
+Every password-KDF panel also shows an **attacker-cost estimate**: pick a target password — from a reused/leaked-list password up to a strong random one — and see how long an offline search would take on one GPU, a 1,000-GPU farm, and a specialized ASIC. The estimates are grounded in published hardware specs (raw SHA-256 throughput and GPU memory bandwidth) and model why compute-bound PBKDF2 collapses against ASICs while memory-bound scrypt/Argon2id barely move. These are order-of-magnitude teaching estimates, not security proofs.
 
 ## What Can Go Wrong
 
@@ -49,6 +53,12 @@ For a production build:
 
 ```bash
 npm run build
+```
+
+To run the test suite (RFC known-answer vectors, chain key-independence, and attacker-cost math) — requires Node ≥ 22.18 for native TypeScript:
+
+```bash
+npm test
 ```
 
 For GitHub Pages deployment:

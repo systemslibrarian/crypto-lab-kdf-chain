@@ -3,12 +3,18 @@
  * Handles DOM creation, event binding, and result rendering
  */
 
-import { hkdf } from './hkdf';
-import { pbkdf2Sha256, pbkdf2Sha512, pbkdf2Benchmark } from './pbkdf2';
-import { deriveScrypt } from './scrypt';
-import { deriveArgon2id } from './argon2';
-import { decide, comparisonTable, type DecisionResult } from './decision';
-import { demoNoSalt, demoWithSalt, demoContextBinding, demoDomainSeparation } from './salt';
+import { hkdf } from './hkdf.ts';
+import { pbkdf2Sha256, pbkdf2Sha512, pbkdf2Benchmark } from './pbkdf2.ts';
+import { deriveScrypt } from './scrypt.ts';
+import { deriveArgon2id } from './argon2.ts';
+import { decide, comparisonTable, type DecisionResult } from './decision.ts';
+import { demoNoSalt, demoWithSalt, demoContextBinding, demoDomainSeparation } from './salt.ts';
+import { deriveChain } from './chain.ts';
+import { vectors } from './vectors.ts';
+import {
+  pbkdf2Attack, scryptAttack, argon2Attack,
+  TARGETS, crackSummary, type Target,
+} from './attack.ts';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -106,6 +112,37 @@ function timingDisplay(id: string): HTMLElement {
   return el('div', { className: 'timing', id, 'aria-live': 'polite' }, '');
 }
 
+/** Labelled <select> populated from the shared TARGETS list. */
+function targetSelect(id: string): HTMLElement {
+  const wrap = el('div', { className: 'input-group' });
+  const lbl = el('label', { 'for': id }, 'Attacker target password');
+  const sel = el('select', { id, className: 'input-field', 'aria-label': 'Attacker target password' });
+  TARGETS.forEach((t, i) => {
+    const opt = el('option', { value: String(i) }, t.label);
+    if (i === 0) opt.setAttribute('selected', 'selected');
+    sel.append(opt);
+  });
+  wrap.append(lbl, sel);
+  return wrap;
+}
+
+function readTarget(id: string): Target {
+  const sel = document.getElementById(id) as HTMLSelectElement | null;
+  return TARGETS[sel ? parseInt(sel.value, 10) : 0] ?? TARGETS[0];
+}
+
+/** Output region for an attacker-cost projection (styled, aria-live). */
+function attackBox(id: string): HTMLElement {
+  const wrap = el('div', { className: 'attack-group' });
+  const lbl = el('span', { className: 'output-label' }, '⚔️ Attacker cost (offline GPU search)');
+  const box = el('pre', {
+    className: 'attack-out', id,
+    'aria-label': 'Attacker cost estimate', 'aria-live': 'polite', tabindex: '0',
+  }, 'Derive a key to estimate attacker cost.');
+  wrap.append(lbl, box);
+  return wrap;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Panel 1 — HKDF                                                    */
 /* ------------------------------------------------------------------ */
@@ -169,6 +206,7 @@ function buildPbkdf2Panel(): HTMLElement {
     inputGroup('pbkdf2-salt', 'Salt', 'text', 'unique-random-salt'),
     inputGroup('pbkdf2-iter', 'Iterations', 'number', '600000', { min: '1', max: '10000000' }),
     inputGroup('pbkdf2-len', 'Output Length (bytes)', 'number', '32', { min: '1', max: '64' }),
+    targetSelect('pbkdf2-target'),
   );
 
   const live = liveRegion('pbkdf2-live');
@@ -188,6 +226,7 @@ function buildPbkdf2Panel(): HTMLElement {
       setOutput('pbkdf2-sha512', r512.hex);
       document.getElementById('pbkdf2-timing')!.textContent =
         `SHA-256: ${r256.timeMs.toFixed(2)} ms | SHA-512: ${r512.timeMs.toFixed(2)} ms`;
+      setOutput('pbkdf2-attack', crackSummary(pbkdf2Attack(iter, 'SHA-256'), readTarget('pbkdf2-target')));
       announce('pbkdf2-live', `PBKDF2 derivation complete. SHA-256 in ${r256.timeMs.toFixed(2)} ms, SHA-512 in ${r512.timeMs.toFixed(2)} ms`);
     } catch (err) {
       announce('pbkdf2-live', `Error: ${(err as Error).message}`);
@@ -220,6 +259,7 @@ function buildPbkdf2Panel(): HTMLElement {
     outputBox('pbkdf2-sha256', 'PBKDF2-HMAC-SHA-256'),
     outputBox('pbkdf2-sha512', 'PBKDF2-HMAC-SHA-512'),
     outputBox('pbkdf2-bench', 'Benchmark Results'),
+    attackBox('pbkdf2-attack'),
   );
 }
 
@@ -238,6 +278,7 @@ function buildScryptPanel(): HTMLElement {
     inputGroup('scrypt-r', 'r (block size)', 'number', '8', { min: '1', max: '64' }),
     inputGroup('scrypt-p', 'p (parallelism)', 'number', '1', { min: '1', max: '16' }),
     inputGroup('scrypt-len', 'Output Length (bytes)', 'number', '32', { min: '1', max: '64' }),
+    targetSelect('scrypt-target'),
   );
 
   const live = liveRegion('scrypt-live');
@@ -255,6 +296,7 @@ function buildScryptPanel(): HTMLElement {
       setOutput('scrypt-out', res.hex);
       document.getElementById('scrypt-timing')!.textContent =
         `Derived in ${res.timeMs.toFixed(2)} ms | Memory estimate: ${res.memoryEstimateMB.toFixed(2)} MB`;
+      setOutput('scrypt-attack', crackSummary(scryptAttack(N, r), readTarget('scrypt-target')));
       announce('scrypt-live', `scrypt derivation complete in ${res.timeMs.toFixed(2)} ms, estimated memory ${res.memoryEstimateMB.toFixed(2)} MB`);
     } catch (err) {
       announce('scrypt-live', `Error: ${(err as Error).message}`);
@@ -293,6 +335,7 @@ function buildScryptPanel(): HTMLElement {
     heading, note, form, derivBtn, benchBtn, live, timing,
     outputBox('scrypt-out', 'Derived Key'),
     outputBox('scrypt-bench', 'N-value Comparison'),
+    attackBox('scrypt-attack'),
   );
 }
 
@@ -311,6 +354,7 @@ function buildArgon2Panel(): HTMLElement {
     inputGroup('argon2-m', 'Memory Cost (KB)', 'number', '19456', { min: '1024', max: '1048576' }),
     inputGroup('argon2-p', 'Parallelism', 'number', '1', { min: '1', max: '16' }),
     inputGroup('argon2-len', 'Tag Length (bytes)', 'number', '32', { min: '4', max: '64' }),
+    targetSelect('argon2-target'),
   );
 
   const live = liveRegion('argon2-live');
@@ -328,6 +372,7 @@ function buildArgon2Panel(): HTMLElement {
       setOutput('argon2-out', res.hex);
       document.getElementById('argon2-timing')!.textContent =
         `Derived in ${res.timeMs.toFixed(2)} ms | Memory: ${(m / 1024).toFixed(1)} MiB`;
+      setOutput('argon2-attack', crackSummary(argon2Attack(t, m), readTarget('argon2-target')));
       announce('argon2-live', `Argon2id derivation complete in ${res.timeMs.toFixed(2)} milliseconds`);
     } catch (err) {
       announce('argon2-live', `Error: ${(err as Error).message}`);
@@ -344,6 +389,7 @@ function buildArgon2Panel(): HTMLElement {
   return panel('panel-argon2',
     heading, note, form, derivBtn, live, timing,
     outputBox('argon2-out', 'Derived Key (Argon2id)'),
+    attackBox('argon2-attack'),
   );
 }
 
@@ -501,6 +547,203 @@ function buildSaltPanel(): HTMLElement {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Panel 7 — The KDF Chain                                           */
+/* ------------------------------------------------------------------ */
+
+function buildChainPanel(): HTMLElement {
+  const heading = sectionHeading('The KDF Chain: Stretch then Fan Out', statusChip('RECOMMENDED DEFAULT'), 'RFC 9106 + RFC 5869');
+  heading.querySelector('h2')!.id = 'panel-chain-title';
+
+  const form = el('div', { className: 'panel-form' },
+    inputGroup('chain-pw', 'Password', 'text', 'correct horse battery staple'),
+    inputGroup('chain-salt', 'Salt (min 8 chars)', 'text', 'random-salt-value-16'),
+    inputGroup('chain-info1', 'Derived key 1 — info string', 'text', 'encryption key'),
+    inputGroup('chain-info2', 'Derived key 2 — info string', 'text', 'MAC key'),
+    inputGroup('chain-info3', 'Derived key 3 — info string', 'text', 'vault storage key'),
+  );
+
+  const live = liveRegion('chain-live');
+  const timing = timingDisplay('chain-timing');
+  const flow = el('div', { id: 'chain-flow', className: 'chain-flow', 'aria-live': 'polite' });
+
+  const runBtn = button('Run the Chain', 'Run the KDF chain: Argon2id then HKDF-Expand fan-out', async () => {
+    const pw = (document.getElementById('chain-pw') as HTMLInputElement).value;
+    const salt = (document.getElementById('chain-salt') as HTMLInputElement).value;
+    const infos = ['chain-info1', 'chain-info2', 'chain-info3']
+      .map(id => (document.getElementById(id) as HTMLInputElement).value)
+      .filter(s => s.trim().length > 0);
+    announce('chain-live', 'Running KDF chain…');
+    try {
+      const r = await deriveChain(pw, salt, infos);
+      flow.innerHTML = '';
+      flow.append(
+        chainNode('step', 'Password', pw || '(empty)', 'low entropy — must be stretched'),
+        chainArrow('Argon2id  (t=2, m=19 MiB, p=1)  —  slow & memory-hard'),
+        chainNode('root', 'Root key', r.rootHex, `expensive step, done once · ${r.argonTimeMs.toFixed(1)} ms`),
+        chainArrow('HKDF-Expand  —  cheap, one call per context (info string)'),
+        el('div', { className: 'chain-fanout' },
+          ...r.links.map(link =>
+            chainNode('leaf', `info = "${link.info}"`, link.keyHex, 'independent, domain-separated'))),
+      );
+      document.getElementById('chain-timing')!.textContent =
+        `Whole chain: ${r.totalTimeMs.toFixed(2)} ms (${r.links.length} keys from one password)`;
+      announce('chain-live', `Chain complete. ${r.links.length} independent keys derived in ${r.totalTimeMs.toFixed(0)} milliseconds`);
+    } catch (err) {
+      announce('chain-live', `Error: ${(err as Error).message}`);
+    }
+  });
+
+  const note = infoBox(
+    'This is the pattern the project is named for, and how TLS 1.3, Signal, and password vaults actually work. ' +
+    'Argon2id pays the expensive, memory-hard cost once to turn a weak password into a high-entropy root key. ' +
+    'HKDF-Expand then cheaply fans that root out into as many independent keys as you need — one per context — ' +
+    'so a leak of the MAC key can never expose the encryption key. Change any info string and that key changes completely.'
+  );
+
+  return panel('panel-chain', heading, note, form, runBtn, live, timing, flow);
+}
+
+function chainNode(kind: string, label: string, value: string, sub: string): HTMLElement {
+  return el('div', { className: `chain-node chain-${kind}` },
+    el('span', { className: 'chain-node-label' }, label),
+    el('pre', { className: 'chain-node-value', tabindex: '0', 'aria-label': `${label} value` }, value),
+    el('span', { className: 'chain-node-sub' }, sub),
+  );
+}
+
+function chainArrow(text: string): HTMLElement {
+  return el('div', { className: 'chain-arrow', 'aria-hidden': 'false' },
+    el('span', { className: 'chain-arrow-glyph', 'aria-hidden': 'true' }, '↓'),
+    el('span', { className: 'chain-arrow-label' }, text),
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panel 8 — Cost Comparison (unified run)                           */
+/* ------------------------------------------------------------------ */
+
+function buildCostPanel(): HTMLElement {
+  const heading = sectionHeading('Cost Comparison: One Password, Every KDF', statusChip('GUIDE'), '');
+  heading.querySelector('h2')!.id = 'panel-cost-title';
+
+  const form = el('div', { className: 'panel-form' },
+    inputGroup('cost-pw', 'Password', 'text', 'correct horse battery staple'),
+    inputGroup('cost-salt', 'Salt', 'text', 'unique-random-salt'),
+    targetSelect('cost-target'),
+  );
+
+  const live = liveRegion('cost-live');
+  const bars = el('div', { id: 'cost-bars', className: 'cost-bars', role: 'list', 'aria-label': 'KDF cost comparison' });
+
+  const runBtn = button('Run All KDFs', 'Run the same password through every password KDF and compare', async () => {
+    const pw = (document.getElementById('cost-pw') as HTMLInputElement).value;
+    const salt = (document.getElementById('cost-salt') as HTMLInputElement).value;
+    const target = readTarget('cost-target');
+    announce('cost-live', 'Running every KDF…');
+    bars.innerHTML = '';
+    try {
+      const pb100 = await pbkdf2Sha256(pw, salt, 100_000, 32);
+      const pb600 = await pbkdf2Sha256(pw, salt, 600_000, 32);
+      const sc = deriveScrypt(pw, salt, 16384, 8, 1, 32);
+      const ar = deriveArgon2id(pw, salt.padEnd(8, '0'), 2, 19456, 1, 32);
+
+      const rows = [
+        { name: 'PBKDF2 (100k)', ms: pb100.timeMs, est: pbkdf2Attack(100_000, 'SHA-256'), warn: true },
+        { name: 'PBKDF2 (600k)', ms: pb600.timeMs, est: pbkdf2Attack(600_000, 'SHA-256'), warn: false },
+        { name: 'scrypt (N=2¹⁴)', ms: sc.timeMs, est: scryptAttack(16384, 8), warn: false },
+        { name: 'Argon2id (19 MiB)', ms: ar.timeMs, est: argon2Attack(2, 19456), warn: false },
+      ];
+      const maxMs = Math.max(...rows.map(r => r.ms));
+      rows.forEach(r => bars.append(costBar(r.name, r.ms, maxMs, crackSummary(r.est, target), r.warn)));
+      announce('cost-live', `Comparison complete for ${rows.length} KDFs against ${target.label}`);
+    } catch (err) {
+      announce('cost-live', `Error: ${(err as Error).message}`);
+    }
+  });
+
+  const note = infoBox(
+    'The same password and salt run through every password KDF. The bar shows YOUR cost (one derivation); ' +
+    'the line below shows the ATTACKER’s cost for the selected target. Notice that a small change in your ' +
+    'time buys an enormous change in theirs — and that memory-hard KDFs (scrypt, Argon2id) deny the GPU the ' +
+    'cheap parallelism that makes PBKDF2 crackable.'
+  );
+
+  return panel('panel-cost', heading, note, form, runBtn, live, bars);
+}
+
+function costBar(name: string, ms: number, maxMs: number, summary: string, warn: boolean): HTMLElement {
+  const pct = Math.max(4, Math.round((ms / maxMs) * 100));
+  const row = el('div', { className: 'cost-row', role: 'listitem' });
+  const head = el('div', { className: 'cost-row-head' },
+    el('span', { className: 'cost-name' }, name),
+    el('span', { className: 'cost-ms' }, `${ms.toFixed(1)} ms`),
+  );
+  const track = el('div', { className: 'cost-track' });
+  const fill = el('div', { className: `cost-fill${warn ? ' cost-fill-warn' : ''}` });
+  fill.setAttribute('style', `width: ${pct}%`);
+  fill.setAttribute('role', 'img');
+  fill.setAttribute('aria-label', `${name}: ${ms.toFixed(1)} milliseconds to derive`);
+  track.append(fill);
+  const attack = el('p', { className: 'cost-attack' }, summary);
+  row.append(head, track, attack);
+  return row;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panel 9 — RFC Known-Answer Tests                                  */
+/* ------------------------------------------------------------------ */
+
+function buildVectorsPanel(): HTMLElement {
+  const heading = sectionHeading('Proof: RFC Known-Answer Tests', statusChip('GUIDE'), 'RFC 5869 · RFC 7914');
+  heading.querySelector('h2')!.id = 'panel-vectors-title';
+
+  const live = liveRegion('vectors-live');
+  const results = el('div', { id: 'vectors-results', className: 'vectors-results', 'aria-live': 'polite' });
+
+  const runBtn = button('Run Test Vectors', 'Verify this demo against published RFC test vectors', async () => {
+    announce('vectors-live', 'Running RFC test vectors…');
+    results.innerHTML = '';
+    let allPass = true;
+    for (const group of vectors) {
+      try {
+        const rows = await group.run();
+        rows.forEach(r => {
+          if (!r.pass) allPass = false;
+          results.append(vectorRow(r));
+        });
+      } catch (err) {
+        allPass = false;
+        results.append(el('div', { className: 'vector-row vector-fail' },
+          el('span', { className: 'vector-badge' }, 'ERROR'),
+          el('span', {}, `${group.name}: ${(err as Error).message}`)));
+      }
+    }
+    announce('vectors-live', allPass ? 'All RFC test vectors passed' : 'Some RFC test vectors failed');
+  });
+
+  const note = infoBox(
+    'Cryptographic standards ship their own test vectors. This panel recomputes published RFC vectors in your ' +
+    'browser and checks them byte-for-byte — so you can trust that the HKDF and PBKDF2 here are the real, ' +
+    'standards-conformant algorithms, not look-alikes.'
+  );
+
+  return panel('panel-vectors', heading, note, runBtn, live, results);
+}
+
+function vectorRow(r: { ref: string; field: string; expected: string; got: string; pass: boolean }): HTMLElement {
+  const row = el('div', { className: `vector-row ${r.pass ? 'vector-pass' : 'vector-fail'}` });
+  const badge = el('span', {
+    className: 'vector-badge',
+    'aria-label': r.pass ? 'Pass' : 'Fail',
+  }, r.pass ? '✅ PASS' : '❌ FAIL');
+  const title = el('span', { className: 'vector-title' }, `${r.ref} — ${r.field}`);
+  const detail = el('pre', { className: 'vector-detail', tabindex: '0' },
+    `expected: ${r.expected}\n   got:  ${r.got}`);
+  row.append(el('div', { className: 'vector-row-head' }, badge, title), detail);
+  return row;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Theme toggle                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -552,6 +795,87 @@ function buildWhySection(): HTMLElement {
   return sec;
 }
 
+function buildGuide(): HTMLElement {
+  const sec = el('section', { className: 'guide-section', 'aria-labelledby': 'guide-heading' });
+  const steps: [string, string, string][] = [
+    ['#panel-hkdf', 'Start with the split', 'Every KDF answers one of two needs: expand a high-entropy secret (HKDF) or stretch a low-entropy password. See HKDF first.'],
+    ['#panel-pbkdf2', 'Stretch a password', 'Try PBKDF2, then scrypt and Argon2id. Watch the derivation time — and the attacker-cost line beneath each.'],
+    ['#panel-memory', 'See why memory wins', 'Understand why scrypt and Argon2id beat GPUs where PBKDF2 fails: the memory-hardness visual.'],
+    ['#panel-chain', 'Build the real thing', 'The KDF chain: stretch a password once with Argon2id, then fan it out into many independent keys with HKDF.'],
+    ['#panel-cost', 'Compare the costs', 'Run one password through every KDF and compare your cost against the attacker’s.'],
+    ['#panel-vectors', 'Prove it’s real', 'Recompute the RFCs’ own test vectors in your browser, checked byte-for-byte.'],
+  ];
+  const list = el('ol', { className: 'guide-steps' });
+  steps.forEach(([href, title, desc], i) => {
+    const link = el('a', { href, className: 'guide-step' },
+      el('span', { className: 'guide-num', 'aria-hidden': 'true' }, String(i + 1)),
+      el('span', { className: 'guide-step-body' },
+        el('span', { className: 'guide-step-title' }, title),
+        el('span', { className: 'guide-step-desc' }, desc)),
+    );
+    list.append(el('li', {}, link));
+  });
+  sec.append(
+    el('h2', { id: 'guide-heading' }, 'Start Here — a Guided Path'),
+    el('p', { className: 'guide-intro' }, 'New to KDFs? Follow these six steps in order. Already know your way around? Jump to any panel below.'),
+    list,
+  );
+  return sec;
+}
+
+function buildMemoryHardnessPanel(): HTMLElement {
+  const heading = sectionHeading('Why Memory Hardness Beats GPUs', statusChip('GUIDE'), '');
+  heading.querySelector('h2')!.id = 'panel-memory-title';
+
+  const note = infoBox(
+    'A GPU is thousands of tiny, cheap compute cores. PBKDF2 is just hashing, so every core runs a separate ' +
+    'password guess in parallel — the attack scales almost for free. scrypt and Argon2id force each guess to ' +
+    'read and write a large block of memory in sequence. Memory bandwidth is shared and expensive, so the cores ' +
+    'sit idle waiting for the bus. You cannot cheaply buy more bandwidth — which is why memory-hard KDFs resist ' +
+    'GPUs and ASICs where PBKDF2 collapses.'
+  );
+
+  // Compute-bound illustration: many busy cores.
+  const cores = el('div', { className: 'mem-cores', 'aria-hidden': 'true' });
+  for (let i = 0; i < 48; i++) cores.append(el('span', { className: 'mem-core' }));
+  const computeCard = el('div', { className: 'mem-card' },
+    el('h3', {}, 'PBKDF2 — compute-bound'),
+    cores,
+    el('p', { className: 'mem-caption' }, 'Every GPU core runs its own guess. Cheap to add thousands → embarrassingly parallel.'),
+  );
+
+  // Memory-bound illustration: a grid that fills sequentially through one bus.
+  const grid = el('div', { id: 'mem-grid', className: 'mem-grid', 'aria-hidden': 'true' });
+  const CELLS = 64;
+  for (let i = 0; i < CELLS; i++) grid.append(el('span', { className: 'mem-cell' }));
+  const memCard = el('div', { className: 'mem-card' },
+    el('h3', {}, 'scrypt / Argon2id — memory-bound'),
+    grid,
+    el('p', { className: 'mem-caption' }, 'Each guess must stream this whole block through one shared memory bus. Extra cores wait → no cheap parallelism.'),
+  );
+
+  const live = liveRegion('mem-live');
+  const animateBtn = button('Animate memory access', 'Animate sequential memory access for a memory-hard KDF', () => {
+    const cells = Array.from(grid.querySelectorAll('.mem-cell')) as HTMLElement[];
+    cells.forEach(c => c.classList.remove('filled'));
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      cells.forEach(c => c.classList.add('filled'));
+      announce('mem-live', 'Memory block filled — every cell must be touched per guess.');
+      return;
+    }
+    announce('mem-live', 'Filling memory block one cell at a time through a single bus.');
+    cells.forEach((c, i) => setTimeout(() => {
+      c.classList.add('filled');
+      if (i === cells.length - 1) announce('mem-live', 'Memory block full. One guess done — and it cost the whole bus.');
+    }, i * 35));
+  });
+
+  const grids = el('div', { className: 'mem-grids' }, computeCard, memCard);
+
+  return panel('panel-memory', heading, note, grids, animateBtn, live);
+}
+
 function buildCrossLinks(): HTMLElement {
   const links = [
     { href: 'https://systemslibrarian.github.io/crypto-lab-shadow-vault/', label: 'Shadow Vault' },
@@ -593,13 +917,18 @@ export function initUI() {
   app.append(
     buildHeader(),
     buildWhySection(),
+    buildGuide(),
     el('main', { className: 'panels', role: 'main' },
       buildHkdfPanel(),
       buildPbkdf2Panel(),
       buildScryptPanel(),
       buildArgon2Panel(),
+      buildMemoryHardnessPanel(),
+      buildChainPanel(),
+      buildCostPanel(),
       buildDecisionPanel(),
       buildSaltPanel(),
+      buildVectorsPanel(),
     ),
     buildCrossLinks(),
     buildFooter(),
