@@ -284,7 +284,7 @@ function buildScryptPanel(): HTMLElement {
   const live = liveRegion('scrypt-live');
   const timing = timingDisplay('scrypt-timing');
 
-  const derivBtn = button('Derive Key', 'Derive scrypt key', () => {
+  const derivBtn = button('Derive Key', 'Derive scrypt key', async () => {
     const pw = (document.getElementById('scrypt-pw') as HTMLInputElement).value;
     const salt = (document.getElementById('scrypt-salt') as HTMLInputElement).value;
     const N = parseInt((document.getElementById('scrypt-n') as HTMLInputElement).value, 10) || 16384;
@@ -292,7 +292,7 @@ function buildScryptPanel(): HTMLElement {
     const p = parseInt((document.getElementById('scrypt-p') as HTMLInputElement).value, 10) || 1;
     const len = parseInt((document.getElementById('scrypt-len') as HTMLInputElement).value, 10) || 32;
     try {
-      const res = deriveScrypt(pw, salt, N, r, p, len);
+      const res = await deriveScrypt(pw, salt, N, r, p, len);
       setOutput('scrypt-out', res.hex);
       document.getElementById('scrypt-timing')!.textContent =
         `Derived in ${res.timeMs.toFixed(2)} ms | Memory estimate: ${res.memoryEstimateMB.toFixed(2)} MB`;
@@ -303,7 +303,7 @@ function buildScryptPanel(): HTMLElement {
     }
   });
 
-  const benchBtn = button('Compare N values (2¹⁴ vs 2¹⁷ vs 2²⁰)', 'Benchmark scrypt at different N values', () => {
+  const benchBtn = button('Compare N values (2¹⁴ vs 2¹⁷ vs 2²⁰)', 'Benchmark scrypt at different N values', async () => {
     const pw = (document.getElementById('scrypt-pw') as HTMLInputElement).value;
     const salt = (document.getElementById('scrypt-salt') as HTMLInputElement).value;
     const r = parseInt((document.getElementById('scrypt-r') as HTMLInputElement).value, 10) || 8;
@@ -311,10 +311,11 @@ function buildScryptPanel(): HTMLElement {
     const len = parseInt((document.getElementById('scrypt-len') as HTMLInputElement).value, 10) || 32;
     announce('scrypt-live', 'Running N-value comparison…');
     try {
-      const results = [2 ** 14, 2 ** 17, 2 ** 20].map(N => {
-        try { return deriveScrypt(pw, salt, N, r, p, len); }
-        catch { return null; }
-      });
+      const results: (Awaited<ReturnType<typeof deriveScrypt>> | null)[] = [];
+      for (const N of [2 ** 14, 2 ** 17, 2 ** 20]) {
+        try { results.push(await deriveScrypt(pw, salt, N, r, p, len)); }
+        catch { results.push(null); }
+      }
       const text = results.map(res => {
         if (!res) return 'N too large for browser memory';
         return `N=2^${Math.log2(res.N)}: ${res.timeMs.toFixed(2)} ms, ~${res.memoryEstimateMB.toFixed(1)} MB`;
@@ -360,7 +361,7 @@ function buildArgon2Panel(): HTMLElement {
   const live = liveRegion('argon2-live');
   const timing = timingDisplay('argon2-timing');
 
-  const derivBtn = button('Derive Key', 'Derive Argon2id key', () => {
+  const derivBtn = button('Derive Key', 'Derive Argon2id key', async () => {
     const pw = (document.getElementById('argon2-pw') as HTMLInputElement).value;
     const salt = (document.getElementById('argon2-salt') as HTMLInputElement).value;
     const t = parseInt((document.getElementById('argon2-t') as HTMLInputElement).value, 10) || 2;
@@ -368,7 +369,7 @@ function buildArgon2Panel(): HTMLElement {
     const p = parseInt((document.getElementById('argon2-p') as HTMLInputElement).value, 10) || 1;
     const dkLen = parseInt((document.getElementById('argon2-len') as HTMLInputElement).value, 10) || 32;
     try {
-      const res = deriveArgon2id(pw, salt, t, m, p, dkLen);
+      const res = await deriveArgon2id(pw, salt, t, m, p, dkLen);
       setOutput('argon2-out', res.hex);
       document.getElementById('argon2-timing')!.textContent =
         `Derived in ${res.timeMs.toFixed(2)} ms | Memory: ${(m / 1024).toFixed(1)} MiB`;
@@ -644,8 +645,8 @@ function buildCostPanel(): HTMLElement {
     try {
       const pb100 = await pbkdf2Sha256(pw, salt, 100_000, 32);
       const pb600 = await pbkdf2Sha256(pw, salt, 600_000, 32);
-      const sc = deriveScrypt(pw, salt, 16384, 8, 1, 32);
-      const ar = deriveArgon2id(pw, salt.padEnd(8, '0'), 2, 19456, 1, 32);
+      const sc = await deriveScrypt(pw, salt, 16384, 8, 1, 32);
+      const ar = await deriveArgon2id(pw, salt.padEnd(8, '0'), 2, 19456, 1, 32);
 
       const rows = [
         { name: 'PBKDF2 (100k)', ms: pb100.timeMs, est: pbkdf2Attack(100_000, 'SHA-256'), warn: true },

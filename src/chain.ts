@@ -39,7 +39,7 @@ export async function deriveChain(
   argon: { t: number; m: number; p: number } = { t: 2, m: 19456, p: 1 },
 ): Promise<ChainResult> {
   const t0 = performance.now();
-  const root = deriveArgon2id(password, salt, argon.t, argon.m, argon.p, 32);
+  const root = await deriveArgon2id(password, salt, argon.t, argon.m, argon.p, 32);
   const rootBytes = new Uint8Array(root.hex.match(/../g)!.map(h => parseInt(h, 16)));
 
   const links: ChainLink[] = [];

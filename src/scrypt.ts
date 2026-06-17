@@ -2,7 +2,7 @@
  * scrypt — Memory-hard password stretching per RFC 7914
  * Uses @noble/hashes scrypt implementation
  */
-import { scrypt as nobleScrypt } from '@noble/hashes/scrypt.js';
+import { scryptAsync as nobleScrypt } from '@noble/hashes/scrypt.js';
 
 function toHex(buf: Uint8Array): string {
   return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -23,16 +23,16 @@ export interface ScryptResult {
  * Derive key using scrypt.
  * Memory estimate: 128 × N × r bytes (per RFC 7914 §2)
  */
-export function deriveScrypt(
+export async function deriveScrypt(
   password: string,
   salt: string,
   N: number,
   r: number,
   p: number,
   dkLen: number,
-): ScryptResult {
+): Promise<ScryptResult> {
   const t0 = performance.now();
-  const dk = nobleScrypt(encoder.encode(password), encoder.encode(salt), { N, r, p, dkLen });
+  const dk = await nobleScrypt(encoder.encode(password), encoder.encode(salt), { N, r, p, dkLen });
   const timeMs = performance.now() - t0;
   const memoryEstimateMB = (128 * N * r) / (1024 * 1024);
   return { hex: toHex(dk), timeMs, N, r, p, memoryEstimateMB };
@@ -41,8 +41,12 @@ export function deriveScrypt(
 /**
  * Benchmark scrypt at multiple N values.
  */
-export function scryptBenchmark(
+export async function scryptBenchmark(
   password: string, salt: string, nValues: number[], r: number, p: number, dkLen: number,
-): ScryptResult[] {
-  return nValues.map(N => deriveScrypt(password, salt, N, r, p, dkLen));
+): Promise<ScryptResult[]> {
+  const results: ScryptResult[] = [];
+  for (const N of nValues) {
+    results.push(await deriveScrypt(password, salt, N, r, p, dkLen));
+  }
+  return results;
 }

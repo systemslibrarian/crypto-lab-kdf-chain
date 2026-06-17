@@ -17,10 +17,10 @@ export async function hkdfExtract(
 ): Promise<{ prk: Uint8Array; prkHex: string }> {
   const rawSalt = salt.length > 0 ? salt : new Uint8Array(32);
   const saltKey = await crypto.subtle.importKey(
-    'raw', rawSalt.buffer as ArrayBuffer,
+    'raw', rawSalt as BufferSource,
     { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   );
-  const prkBuf = await crypto.subtle.sign('HMAC', saltKey, ikm.buffer as ArrayBuffer);
+  const prkBuf = await crypto.subtle.sign('HMAC', saltKey, ikm as BufferSource);
   const prk = new Uint8Array(prkBuf);
   return { prk, prkHex: toHex(prk) };
 }
@@ -36,7 +36,7 @@ export async function hkdfExpand(
   let prev = new Uint8Array(0);
   const okm = new Uint8Array(n * 32);
   const key = await crypto.subtle.importKey(
-    'raw', prk.buffer as ArrayBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+    'raw', prk as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   );
   for (let i = 1; i <= n; i++) {
     const input = new Uint8Array(prev.length + info.length + 1);
