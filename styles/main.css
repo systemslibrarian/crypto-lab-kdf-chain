@@ -1025,3 +1025,10 @@ h3 {
   margin-top: 1rem;
   margin-bottom: 0.5rem;
 }
+
+
+/* ═══ Accessibility: WCAG AA contrast overrides (auto-added) ═══ */
+[data-theme="dark"] .btn:hover { background-color: #3f77b6; } /* was #58a6ff on #ffffff = 2.53:1 → 4.64:1 */
+[data-theme="light"] .chip-recommended { background-color: #258640; } /* was #2da44e on #ffffff = 3.22:1 → 4.60:1 */
+[data-theme="light"] .chip-acceptable { background-color: #9a6d00; } /* was #bf8700 on #ffffff = 3.14:1 → 4.60:1 */
+[data-theme="light"] .cross-link:hover { background-color: #eff2f4; } /* was #d0d7de on #0969da = 3.57:1 → 4.62:1 */
