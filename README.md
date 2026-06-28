@@ -1,9 +1,5 @@
 # crypto-lab-kdf-chain
 
-HKDF · PBKDF2 · scrypt · Argon2id · HMAC-SHA-256
-
-Live demo: https://systemslibrarian.github.io/crypto-lab-kdf-chain/
-
 ## What It Is
 
 crypto-lab-kdf-chain is an interactive browser demo of four key derivation functions: HKDF (RFC 5869), PBKDF2 (RFC 8018), scrypt (RFC 7914), and Argon2id (RFC 9106). It shows what security problem each KDF solves, how their parameters affect cost, and why choosing the wrong one leads to real-world compromise. All four operate under a symmetric security model — they transform shared secrets or passwords into derived key material using HMAC-SHA-256 as the underlying pseudorandom function. The demo is entirely client-side: HKDF and PBKDF2 use the WebCrypto API; scrypt and Argon2id use @noble/hashes.
@@ -14,11 +10,11 @@ crypto-lab-kdf-chain is an interactive browser demo of four key derivation funct
 - **You are choosing between HKDF, PBKDF2, scrypt, and Argon2id** — the built-in decision tree walks through input entropy, multi-key derivation, and FIPS constraints to recommend the right KDF.
 - **You want to demonstrate why salt matters** — the salt panel shows identical passwords producing identical output without salt and independent output with salt, making rainbow-table risk concrete.
 - **You need to benchmark KDF cost in a specific browser** — PBKDF2 iteration benchmarks and scrypt N-value comparisons use real `performance.now()` timing on whatever hardware you run.
-- **Do not use this demo for production key derivation** — it runs in a browser with no secure memory management, no constant-time guarantees, and user-supplied parameters that may be too weak.
+- Do not use this demo for production key derivation — it runs in a browser with no secure memory management, no constant-time guarantees, and user-supplied parameters that may be too weak.
 
 ## Live Demo
 
-[https://systemslibrarian.github.io/crypto-lab-kdf-chain/](https://systemslibrarian.github.io/crypto-lab-kdf-chain/)
+**[systemslibrarian.github.io/crypto-lab-kdf-chain](https://systemslibrarian.github.io/crypto-lab-kdf-chain/)**
 
 A **guided path** at the top walks newcomers through the demo in six ordered steps; experienced users can jump straight to any panel.
 
@@ -42,12 +38,24 @@ Every password-KDF panel also shows an **attacker-cost estimate**: pick a target
 - **1Password / Bitwarden** — use PBKDF2-HMAC-SHA-256 (or Argon2id in newer configurations) to stretch the user's master password into an encryption key for the vault.
 - **Linux libsodium (pwhash)** — uses Argon2id as the default password hashing algorithm, with tunable time and memory cost, to protect stored credentials against GPU and ASIC attacks.
 
-## Running Locally
+## How to Run Locally
 
 ```bash
+git clone https://github.com/systemslibrarian/crypto-lab-kdf-chain
+cd crypto-lab-kdf-chain
 npm install
 npm run dev
 ```
+
+## Related Demos
+
+- [crypto-lab-kdf-arena](https://systemslibrarian.github.io/crypto-lab-kdf-arena/) — sibling KDF benchmark that times HKDF/PBKDF2/scrypt/Argon2id side by side.
+- [crypto-lab-shadow-vault](https://systemslibrarian.github.io/crypto-lab-shadow-vault/) — Argon2id plus ChaCha20-Poly1305 file encryption.
+- [crypto-lab-ratchet-wire](https://systemslibrarian.github.io/crypto-lab-ratchet-wire/) — Double Ratchet that derives message keys with HKDF.
+- [crypto-lab-mac-race](https://systemslibrarian.github.io/crypto-lab-mac-race/) — HMAC and other MACs, the PRF underneath these KDFs.
+- [crypto-lab-bcrypt-forge](https://systemslibrarian.github.io/crypto-lab-bcrypt-forge/) — bcrypt cost-factor tuning, the other major password-hashing family.
+
+## Building and Testing
 
 For a production build:
 
@@ -67,12 +75,8 @@ For GitHub Pages deployment:
 npm run deploy
 ```
 
-## Related Demos
+---
 
-- https://systemslibrarian.github.io/crypto-lab/
-- https://systemslibrarian.github.io/crypto-lab-shadow-vault/
-- https://systemslibrarian.github.io/crypto-lab-ratchet-wire/
-- https://systemslibrarian.github.io/crypto-lab-mac-race/
-- https://github.com/systemslibrarian/crypto-compare
+*One of 60+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
-> *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
+*"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
