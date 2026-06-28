@@ -902,6 +902,20 @@ function buildFooter(): HTMLElement {
       rel: 'noopener noreferrer',
       'aria-label': 'View source on GitHub',
     }, '⬡ GitHub'),
+    (() => {
+      const related = el('nav', { className: 'cross-links', 'aria-label': 'Related demos' });
+      related.append(el('span', { className: 'cross-label' }, 'Related demos:'));
+      [
+        { href: 'https://systemslibrarian.github.io/crypto-lab-kdf-arena/', label: 'crypto-lab-kdf-arena' },
+        { href: 'https://systemslibrarian.github.io/crypto-lab-shadow-vault/', label: 'crypto-lab-shadow-vault' },
+        { href: 'https://systemslibrarian.github.io/crypto-lab-ratchet-wire/', label: 'crypto-lab-ratchet-wire' },
+        { href: 'https://systemslibrarian.github.io/crypto-lab-mac-race/', label: 'crypto-lab-mac-race' },
+        { href: 'https://systemslibrarian.github.io/crypto-lab-bcrypt-forge/', label: 'crypto-lab-bcrypt-forge' },
+      ].forEach(l => {
+        related.append(el('a', { href: l.href, className: 'cross-link', target: '_blank', rel: 'noopener noreferrer' }, l.label));
+      });
+      return related;
+    })(),
     el('p', { className: 'footer-verse' },
       'So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31'),
   );
