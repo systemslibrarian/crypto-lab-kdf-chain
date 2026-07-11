@@ -8,12 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test",
+    "test:a11y": "playwright test",
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
     "@noble/hashes": "latest"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.61.1",
     "gh-pages": "latest",
     "typescript": "latest",
     "vite": "latest"
