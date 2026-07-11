@@ -5,7 +5,9 @@
 
 /* ---- Reset ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; scroll-behavior: smooth; }
+/* Explicit canvas background: WebKit reports body->canvas propagation as
+   transparent, which breaks automated contrast checks. */
+html { font-size: 16px; scroll-behavior: smooth; background-color: var(--bg); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
@@ -13,6 +15,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 
 /* ---- Custom Properties — Dark (default) ---- */
 :root {
+  color-scheme: dark;
   --bg:          #0e1117;
   --bg-panel:    #161b22;
   --bg-input:    #0d1117;
@@ -41,6 +44,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 
 /* ---- Light mode ---- */
 [data-theme="light"] {
+  color-scheme: light;
   --bg:          #ffffff;
   --bg-panel:    #f6f8fa;
   --bg-input:    #ffffff;
@@ -66,7 +70,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
@@ -101,7 +105,7 @@ body {
 
 .category-chip {
   display: inline-block;
-  background: var(--accent-dim);
+  background-color: var(--accent-dim);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
@@ -134,7 +138,7 @@ body {
 
 .primitive-chip {
   display: inline-block;
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text);
   font-family: var(--font-mono);
@@ -145,7 +149,7 @@ body {
 
 /* ---- Theme toggle ---- */
 .theme-toggle {
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text);
   width: 2.6rem; height: 2.6rem;
@@ -156,7 +160,7 @@ body {
   transition: background 0.15s;
 }
 
-.theme-toggle:hover { background: var(--border); }
+.theme-toggle:hover { background-color: var(--border); }
 
 /* ================================================================ */
 /*  Panels                                                          */
@@ -172,7 +176,7 @@ body {
 }
 
 .panel {
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.5rem;
@@ -213,25 +217,25 @@ body {
 }
 
 .chip-recommended {
-  background: var(--chip-rec);
+  background-color: var(--chip-rec);
   color: var(--chip-rec-text);
 }
 .chip-recommended-default {
-  background: var(--chip-def);
+  background-color: var(--chip-def);
   color: var(--chip-def-text);
 }
 .chip-acceptable {
-  background: var(--chip-acc);
+  background-color: var(--chip-acc);
   color: var(--chip-acc-text);
 }
 .chip-info {
-  background: var(--chip-info);
+  background-color: var(--chip-info);
   color: var(--chip-info-text);
 }
 
 /* ---- Info box ---- */
 .info-box {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
   border-left: 3px solid var(--accent);
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -271,7 +275,7 @@ body {
   font-size: 0.9rem;
   padding: 0.5rem 0.75rem;
   min-height: 44px;
-  background: var(--bg-input);
+  background-color: var(--bg-input);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -287,7 +291,7 @@ input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
   height: 6px;
-  background: var(--border);
+  background-color: var(--border);
   border-radius: 3px;
   min-height: 44px;
   padding: 19px 0;
@@ -295,13 +299,13 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 24px; height: 24px;
-  background: var(--accent);
+  background-color: var(--accent);
   border-radius: 50%;
   cursor: pointer;
 }
 input[type="range"]::-moz-range-thumb {
   width: 24px; height: 24px;
-  background: var(--accent);
+  background-color: var(--accent);
   border: 0;
   border-radius: 50%;
   cursor: pointer;
@@ -327,7 +331,7 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 600;
   font-family: var(--font-sans);
   color: #ffffff;
-  background: var(--accent-dim);
+  background-color: var(--accent-dim);
   border: 1px solid transparent;
   border-radius: var(--radius);
   cursor: pointer;
@@ -336,7 +340,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .btn:hover {
-  background: var(--accent);
+  background-color: var(--accent);
 }
 
 .btn:focus-visible {
@@ -364,7 +368,7 @@ input[type="range"]::-moz-range-thumb {
 .output-hex {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  background: var(--bg);
+  background-color: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
@@ -423,7 +427,7 @@ input[type="range"]::-moz-range-thumb {
 .decision-result {
   margin: 1rem 0;
   padding: 1rem;
-  background: color-mix(in srgb, var(--success) 8%, transparent);
+  background-color: color-mix(in srgb, var(--success) 8%, transparent);
   border: 1px solid var(--success);
   border-radius: var(--radius);
   display: none;
@@ -471,13 +475,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .comparison-table th {
-  background: var(--bg);
+  background-color: var(--bg);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .comparison-table tr:nth-child(even) {
-  background: color-mix(in srgb, var(--bg) 50%, var(--bg-panel));
+  background-color: color-mix(in srgb, var(--bg) 50%, var(--bg-panel));
 }
 
 .td-kdf {
@@ -550,7 +554,7 @@ input[type="range"]::-moz-range-thumb {
 
 .cross-link {
   display: inline-block;
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--accent);
   text-decoration: none;
@@ -563,7 +567,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .cross-link:hover {
-  background: var(--border);
+  background-color: var(--border);
   text-decoration: underline;
 }
 
@@ -588,7 +592,7 @@ input[type="range"]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
@@ -600,7 +604,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .github-badge:hover {
-  background: var(--border);
+  background-color: var(--border);
 }
 
 .footer-verse {
@@ -639,7 +643,7 @@ select.input-field {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.5;
-  background: color-mix(in srgb, var(--error) 8%, var(--bg));
+  background-color: color-mix(in srgb, var(--error) 8%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--error) 40%, var(--border));
   border-left: 3px solid var(--error);
   border-radius: var(--radius);
@@ -666,7 +670,7 @@ select.input-field {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
-  background: var(--bg);
+  background-color: var(--bg);
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -674,12 +678,12 @@ select.input-field {
 
 .chain-root {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--bg));
 }
 
 .chain-leaf {
   border-color: var(--success);
-  background: color-mix(in srgb, var(--success) 8%, var(--bg));
+  background-color: color-mix(in srgb, var(--success) 8%, var(--bg));
 }
 
 .chain-node-label {
@@ -763,7 +767,7 @@ select.input-field {
 }
 
 .cost-track {
-  background: var(--bg);
+  background-color: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   height: 1.5rem;
@@ -772,14 +776,14 @@ select.input-field {
 
 .cost-fill {
   height: 100%;
-  background: var(--accent-dim);
+  background-color: var(--accent-dim);
   border-radius: var(--radius) 0 0 var(--radius);
   transition: width 0.4s ease;
   min-width: 2px;
 }
 
 .cost-fill-warn {
-  background: var(--warning);
+  background-color: var(--warning);
 }
 
 .cost-attack {
@@ -807,7 +811,7 @@ select.input-field {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
-  background: var(--bg);
+  background-color: var(--bg);
 }
 
 .vector-pass {
@@ -889,7 +893,7 @@ select.input-field {
   align-items: flex-start;
   text-decoration: none;
   color: var(--text);
-  background: var(--bg-panel);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.85rem 1rem;
@@ -900,7 +904,7 @@ select.input-field {
 
 .guide-step:hover {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
+  background-color: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
 }
 
 .guide-num {
@@ -908,7 +912,7 @@ select.input-field {
   width: 1.8rem;
   height: 1.8rem;
   border-radius: 50%;
-  background: var(--accent-dim);
+  background-color: var(--accent-dim);
   color: #fff;
   font-weight: 700;
   font-size: 0.9rem;
@@ -955,7 +959,7 @@ select.input-field {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
-  background: var(--bg);
+  background-color: var(--bg);
 }
 
 .mem-card h3 {
@@ -979,7 +983,7 @@ select.input-field {
 .mem-core {
   aspect-ratio: 1;
   border-radius: 2px;
-  background: var(--success);
+  background-color: var(--success);
   opacity: 0.85;
 }
 
@@ -992,12 +996,12 @@ select.input-field {
 .mem-cell {
   aspect-ratio: 1;
   border-radius: 2px;
-  background: var(--border);
+  background-color: var(--border);
   transition: background 0.2s ease;
 }
 
 .mem-cell.filled {
-  background: var(--accent);
+  background-color: var(--accent);
 }
 
 /* ================================================================ */
