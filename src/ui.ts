@@ -745,44 +745,28 @@ function vectorRow(r: { ref: string; field: string; expected: string; got: strin
 }
 
 /* ------------------------------------------------------------------ */
-/*  Theme toggle                                                      */
-/* ------------------------------------------------------------------ */
-
-function buildThemeToggle(): HTMLElement {
-  const isDark = () => document.documentElement.getAttribute('data-theme') !== 'light';
-
-  const btn = el('button', {
-    className: 'theme-toggle',
-    'aria-label': isDark() ? 'Switch to light mode' : 'Switch to dark mode',
-    id: 'theme-toggle',
-  });
-  btn.setAttribute('style', 'position: absolute; top: 0; right: 0');
-  btn.textContent = isDark() ? '🌙' : '☀️';
-
-  btn.addEventListener('click', () => {
-    const newTheme = isDark() ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    btn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
-    btn.setAttribute('aria-label', newTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  });
-
-  return btn;
-}
-
-/* ------------------------------------------------------------------ */
 /*  Header / Footer / Cross-links                                     */
 /* ------------------------------------------------------------------ */
 
 function buildHeader(): HTMLElement {
-  const header = el('header', { className: 'site-header' });
-  const chip = el('span', { className: 'category-chip' }, 'KDF');
-  const title = el('h1', { className: 'site-title' }, chip, ' KDF Chain');
-  const subtitle = el('p', { className: 'site-subtitle' }, 'Interactive key derivation function comparison');
-  const primitives = el('div', { className: 'primitive-chips', 'aria-label': 'Cryptographic primitives used' },
-    ...['HKDF', 'PBKDF2', 'scrypt', 'Argon2id', 'HMAC-SHA-256'].map(p =>
-      el('span', { className: 'primitive-chip' }, p)));
-  header.append(buildThemeToggle(), title, subtitle, primitives);
+  // Fleet cl-hero standard: title block on the left, "why it matters" on the right.
+  const header = el('header', { className: 'cl-hero' });
+
+  const main = el('div', { className: 'cl-hero-main' });
+  const title = el('h1', { className: 'cl-hero-title' }, 'KDF Chain');
+  const sub = el('p', { className: 'cl-hero-sub' }, 'HKDF · PBKDF2 · scrypt · Argon2id');
+  const desc = el('p', { className: 'cl-hero-desc' },
+    'Derive keys with four KDFs side by side — stretch a low-entropy password, expand a high-entropy secret, and fan one root out into many keys, with live timing and RFC test vectors.');
+  main.append(title, sub, desc);
+
+  const why = el('aside', { className: 'cl-hero-why', 'aria-label': 'Why it matters' });
+  why.append(
+    el('span', { className: 'cl-hero-why-label' }, 'WHY IT MATTERS'),
+    el('p', { className: 'cl-hero-why-text' },
+      'The wrong KDF is why leaked password databases still get cracked. Salt, memory-hardness, and domain separation decide how ruinously expensive an attacker’s offline guessing becomes.'),
+  );
+
+  header.append(main, why);
   return header;
 }
 
@@ -930,20 +914,24 @@ export function initUI() {
   const app = document.getElementById('app')!;
   app.innerHTML = '';
   app.append(
-    buildHeader(),
-    buildWhySection(),
-    buildGuide(),
-    el('main', { className: 'panels', role: 'main' },
-      buildHkdfPanel(),
-      buildPbkdf2Panel(),
-      buildScryptPanel(),
-      buildArgon2Panel(),
-      buildMemoryHardnessPanel(),
-      buildChainPanel(),
-      buildCostPanel(),
-      buildDecisionPanel(),
-      buildSaltPanel(),
-      buildVectorsPanel(),
+    // Hero lives INSIDE <main> so its <header class="cl-hero"> is not a second
+    // banner landmark (the shared cl-topbar is the page banner).
+    el('main', { role: 'main' },
+      buildHeader(),
+      buildWhySection(),
+      buildGuide(),
+      el('div', { className: 'panels' },
+        buildHkdfPanel(),
+        buildPbkdf2Panel(),
+        buildScryptPanel(),
+        buildArgon2Panel(),
+        buildMemoryHardnessPanel(),
+        buildChainPanel(),
+        buildCostPanel(),
+        buildDecisionPanel(),
+        buildSaltPanel(),
+        buildVectorsPanel(),
+      ),
     ),
     buildCrossLinks(),
     buildFooter(),

@@ -97,55 +97,22 @@ body {
 /*  Header                                                          */
 /* ================================================================ */
 
-.site-header {
-  text-align: center;
-  padding: 2rem 1rem 1.5rem;
-  position: relative;
-}
+/* BEGIN cl-hero standard — managed, keep in sync across fleet */
+/* Accent/tint/text mapped to this demo's theme vars. This repo uses
+   --text-muted (no --text-dim); the label/text rules add an explicit color. */
+.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
+.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
+.cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;}
+.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;opacity:.85;}
+.cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--text-muted);max-width:60ch;}
+.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);}
+.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--text-muted);}
+.cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;color:var(--text);}
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}}
+/* END cl-hero standard */
 
-.category-chip {
-  display: inline-block;
-  background-color: var(--accent-dim);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.2em 0.7em;
-  border-radius: 999px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  vertical-align: middle;
-}
-
-.site-title {
-  font-size: clamp(1.5rem, 5vw, 2.5rem);
-  font-weight: 800;
-  margin-top: 0.25rem;
-}
-
-.site-subtitle {
-  color: var(--text-muted);
-  font-size: 1rem;
-  margin-top: 0.25rem;
-}
-
-.primitive-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.primitive-chip {
-  display: inline-block;
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  padding: 0.25em 0.6em;
-  border-radius: 999px;
-}
+/* Repo layout: match the 900px centered column of the other page sections. */
+.cl-hero{max-width:900px;margin-left:auto;margin-right:auto;padding:0 1rem;}
 
 /* ---- Theme toggle ---- */
 .theme-toggle {
