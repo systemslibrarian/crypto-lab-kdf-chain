@@ -1017,13 +1017,6 @@ h3 {
 
 .diagram-lead strong { color: var(--text); }
 
-/* ---- Inline glossary term ---- */
-.gloss-def {
-  color: var(--text-muted);
-  font-weight: 400;
-  font-style: italic;
-}
-
 /* ================================================================ */
 /*  HKDF extract→expand diagram                                      */
 /* ================================================================ */

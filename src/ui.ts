@@ -108,18 +108,6 @@ function infoBox(text: string): HTMLElement {
   return el('div', { className: 'info-box', role: 'note' }, text);
 }
 
-/**
- * An inline term with a plain-language gloss. Renders the acronym followed by a
- * short parenthetical so a newcomer meets the definition the first time the word
- * appears, while the acronym stays visible for the professional. Also carries a
- * `title` so the gloss is available on hover/focus for the full form.
- */
-function glossTerm(term: string, gloss: string): HTMLElement {
-  const span = el('span', { className: 'gloss', title: `${term}: ${gloss}` }, term);
-  span.append(el('span', { className: 'gloss-def' }, ` (${gloss})`));
-  return span;
-}
-
 /** Short truncation of a hex string for compact diagram chips. */
 function shortHex(hex: string, keep = 16): string {
   if (hex.length <= keep + 3) return hex;
