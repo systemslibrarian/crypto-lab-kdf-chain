@@ -4,7 +4,7 @@
  */
 
 import { hkdf } from './hkdf.ts';
-import { pbkdf2Sha256, pbkdf2Sha512, pbkdf2Benchmark } from './pbkdf2.ts';
+import { pbkdf2Sha256, pbkdf2Sha512, pbkdf2Benchmark, pbkdf2Chain } from './pbkdf2.ts';
 import { deriveScrypt } from './scrypt.ts';
 import { deriveArgon2id } from './argon2.ts';
 import { decide, comparisonTable, type DecisionResult } from './decision.ts';
@@ -108,6 +108,35 @@ function infoBox(text: string): HTMLElement {
   return el('div', { className: 'info-box', role: 'note' }, text);
 }
 
+/**
+ * An inline term with a plain-language gloss. Renders the acronym followed by a
+ * short parenthetical so a newcomer meets the definition the first time the word
+ * appears, while the acronym stays visible for the professional. Also carries a
+ * `title` so the gloss is available on hover/focus for the full form.
+ */
+function glossTerm(term: string, gloss: string): HTMLElement {
+  const span = el('span', { className: 'gloss', title: `${term}: ${gloss}` }, term);
+  span.append(el('span', { className: 'gloss-def' }, ` (${gloss})`));
+  return span;
+}
+
+/** Short truncation of a hex string for compact diagram chips. */
+function shortHex(hex: string, keep = 16): string {
+  if (hex.length <= keep + 3) return hex;
+  return `${hex.slice(0, keep)}…`;
+}
+
+/**
+ * A collapsible "assumptions" note rendered with native <details> so it is
+ * keyboard-accessible and needs no custom ARIA. Used to put the attacker-cost
+ * model's inputs right next to the scary numbers instead of only in the README.
+ */
+function assumptionsNote(summary: string, ...body: (string | Node)[]): HTMLElement {
+  const d = el('details', { className: 'assumptions' });
+  d.append(el('summary', {}, summary), el('div', { className: 'assumptions-body' }, ...body));
+  return d;
+}
+
 function timingDisplay(id: string): HTMLElement {
   return el('div', { className: 'timing', id, 'aria-live': 'polite' }, '');
 }
@@ -139,8 +168,26 @@ function attackBox(id: string): HTMLElement {
     className: 'attack-out', id,
     'aria-label': 'Attacker cost estimate', 'aria-live': 'polite', tabindex: '0',
   }, 'Derive a key to estimate attacker cost.');
-  wrap.append(lbl, box);
+  wrap.append(lbl, box, attackerAssumptions());
   return wrap;
+}
+
+/**
+ * The attacker-cost model's assumptions, shown INLINE next to the scary numbers
+ * (previously only in the README). Keeps the honesty the RFC-vectors panel
+ * establishes: precise-looking crack times without visible inputs teach false
+ * certainty. Collapsed by default so it doesn't crowd the primary readout.
+ */
+function attackerAssumptions(): HTMLElement {
+  return assumptionsNote(
+    'Assumptions behind these numbers (order-of-magnitude estimate, not a proof)',
+    el('ul', { className: 'assumptions-list' },
+      el('li', {}, 'Hardware: one RTX 4090-class GPU — ~22 GH/s raw SHA-256, ~1 TB/s memory bandwidth (published specs).'),
+      el('li', {}, 'Average case: attacker finds the password after searching half the keyspace (keyspace ÷ 2).'),
+      el('li', {}, 'ASIC advantage: ~5000× for compute-bound PBKDF2 (cheap SHA cores), but only ~5× for memory-bound scrypt/Argon2id — memory bandwidth resists custom silicon.'),
+      el('li', {}, 'Farm = 1,000 such GPUs in perfect parallel. Real attacks vary with wordlists, rig efficiency, and price; treat these as ballpark, not guarantees.'),
+    ),
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -161,6 +208,8 @@ function buildHkdfPanel(): HTMLElement {
   const live = liveRegion('hkdf-live');
   const timing = timingDisplay('hkdf-timing');
 
+  const diagram = buildHkdfDiagram();
+
   const derivBtn = button('Derive Key', 'Derive HKDF key', async () => {
     const ikm = (document.getElementById('hkdf-ikm') as HTMLInputElement).value;
     const salt = (document.getElementById('hkdf-salt') as HTMLInputElement).value;
@@ -172,6 +221,9 @@ function buildHkdfPanel(): HTMLElement {
       setOutput('hkdf-okm', r.okmHex);
       setOutput('hkdf-blocks', r.blocks.map((b, i) => `T(${i + 1}): ${b}`).join('\n'));
       document.getElementById('hkdf-timing')!.textContent = `Derived in ${r.timeMs.toFixed(2)} ms`;
+      // Feed the real computed bytes into the two-phase diagram so the animation
+      // shows THIS derivation, never a canned value.
+      renderHkdfDiagram({ salt: salt || '(none → zero-filled)', ikm, info, prkHex: r.prkHex, blocks: r.blocks });
       announce('hkdf-live', `HKDF derivation complete in ${r.timeMs.toFixed(2)} milliseconds`);
     } catch (err) {
       announce('hkdf-live', `Error: ${(err as Error).message}`);
@@ -185,12 +237,92 @@ function buildHkdfPanel(): HTMLElement {
 
   return panel('panel-hkdf',
     heading, note, form, derivBtn, live, timing,
+    diagram,
     el('h3', {}, 'Extract Phase'),
     outputBox('hkdf-prk', 'PRK = HMAC-SHA-256(salt, IKM)'),
     el('h3', {}, 'Expand Phase'),
     outputBox('hkdf-okm', 'Output Key Material (OKM)'),
     outputBox('hkdf-blocks', 'Expand Blocks T(i)'),
   );
+}
+
+/**
+ * Static skeleton for the HKDF extract→expand diagram. It teaches the MECHANISM
+ * behind the hex: two boxes labelled in plain words ("condense entropy" /
+ * "stretch to length"), an HMAC box in each phase, and an expand loop that shows
+ * T(i-1)||info||counter feeding back into HMAC. Filled by renderHkdfDiagram with
+ * the real bytes from the last derivation.
+ */
+function buildHkdfDiagram(): HTMLElement {
+  const wrap = el('section', { className: 'hkdf-diagram', 'aria-labelledby': 'hkdf-diagram-h' });
+  wrap.append(
+    el('h3', { id: 'hkdf-diagram-h', className: 'diagram-h' }, 'How it works: extract, then expand'),
+    el('p', { className: 'diagram-lead' },
+      'Two phases. ',
+      el('strong', {}, 'Extract'),
+      ' condenses whatever entropy your inputs have into one fixed-size random-looking seed. ',
+      el('strong', {}, 'Expand'),
+      ' stretches that seed to any length you asked for, one HMAC block at a time. Derive a key above to watch your bytes flow through.',
+    ),
+    // Extract phase
+    el('div', { className: 'hkdf-phase' },
+      el('div', { className: 'hkdf-phase-tag' }, 'PHASE 1 · EXTRACT — condense entropy'),
+      el('div', { className: 'hkdf-flow' },
+        el('div', { className: 'hkdf-box hkdf-in', id: 'hkdf-d-salt' },
+          el('span', { className: 'hkdf-box-k' }, 'salt (the HMAC key)'),
+          el('span', { className: 'hkdf-box-v', id: 'hkdf-d-salt-v' }, '—')),
+        el('div', { className: 'hkdf-box hkdf-in', id: 'hkdf-d-ikm' },
+          el('span', { className: 'hkdf-box-k' }, 'IKM — the secret you start with'),
+          el('span', { className: 'hkdf-box-v', id: 'hkdf-d-ikm-v' }, '—')),
+        el('div', { className: 'hkdf-op', 'aria-hidden': 'true' }, 'HMAC-SHA-256'),
+        el('div', { className: 'hkdf-box hkdf-prk', id: 'hkdf-d-prk' },
+          el('span', { className: 'hkdf-box-k' }, 'PRK — a condensed random seed'),
+          el('span', { className: 'hkdf-box-v', id: 'hkdf-d-prk-v' }, '—')),
+      ),
+    ),
+    // Expand phase
+    el('div', { className: 'hkdf-phase' },
+      el('div', { className: 'hkdf-phase-tag' }, 'PHASE 2 · EXPAND — stretch to length'),
+      el('p', { className: 'hkdf-expand-formula' },
+        'Each block: T(i) = HMAC(PRK, ',
+        el('span', { className: 'hkdf-term' }, 'T(i-1)'),
+        ' ‖ ',
+        el('span', { className: 'hkdf-term' }, 'info'),
+        ' ‖ ',
+        el('span', { className: 'hkdf-term' }, 'i'),
+        '). The previous block feeds the next — that feedback is what makes the output as long as you need.',
+      ),
+      el('div', { className: 'hkdf-expand-blocks', id: 'hkdf-d-blocks', role: 'list', 'aria-label': 'HKDF expand blocks' },
+        el('p', { className: 'hkdf-empty' }, 'Derive a key to see T(1), T(2), … build up.')),
+    ),
+  );
+  return wrap;
+}
+
+/** Fill and briefly animate the HKDF diagram with real derivation bytes. */
+function renderHkdfDiagram(d: { salt: string; ikm: string; info: string; prkHex: string; blocks: string[] }): void {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const setV = (id: string, txt: string) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+  setV('hkdf-d-salt-v', d.salt.length > 40 ? `${d.salt.slice(0, 40)}…` : (d.salt || '(empty)'));
+  setV('hkdf-d-ikm-v', d.ikm.length > 40 ? `${d.ikm.slice(0, 40)}…` : (d.ikm || '(empty)'));
+  setV('hkdf-d-prk-v', shortHex(d.prkHex, 32));
+
+  const box = document.getElementById('hkdf-d-blocks');
+  if (!box) return;
+  box.innerHTML = '';
+  d.blocks.forEach((b, i) => {
+    const prev = i === 0 ? 'T(0) = empty' : `T(${i})`;
+    const block = el('div', { className: 'hkdf-block', role: 'listitem' },
+      el('span', { className: 'hkdf-block-h' }, `T(${i + 1})`),
+      el('span', { className: 'hkdf-block-feed' }, `HMAC(PRK, ${prev} ‖ info ‖ ${i + 1})`),
+      el('span', { className: 'hkdf-block-v' }, shortHex(b, 32)),
+    );
+    box.append(block);
+    if (!reduce) {
+      block.classList.add('hkdf-block-enter');
+      setTimeout(() => block.classList.remove('hkdf-block-enter'), 30 + i * 140);
+    }
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -211,6 +343,7 @@ function buildPbkdf2Panel(): HTMLElement {
 
   const live = liveRegion('pbkdf2-live');
   const timing = timingDisplay('pbkdf2-timing');
+  const chainViz = buildPbkdf2ChainViz();
 
   const derivBtn = button('Derive Key', 'Derive PBKDF2 key', async () => {
     const pw = (document.getElementById('pbkdf2-pw') as HTMLInputElement).value;
@@ -249,18 +382,89 @@ function buildPbkdf2Panel(): HTMLElement {
   });
 
   const note = infoBox(
-    'PBKDF2 is embarrassingly parallel — GPUs can test many passwords simultaneously. ' +
+    'PBKDF2 is embarrassingly parallel (one guess needs no memory, so a GPU runs thousands at once). ' +
     'OWASP recommends minimum 600,000 iterations for PBKDF2-HMAC-SHA-256. ' +
-    'Prefer Argon2id for new systems. Iteration chain: U₁, U₂, … Uₙ XORed together.'
+    'Prefer Argon2id for new systems. Iteration chain: U₁, U₂, … Uₙ XORed together — shown live below.'
   );
 
   return panel('panel-pbkdf2',
     heading, note, form, derivBtn, benchBtn, live, timing,
+    chainViz,
     outputBox('pbkdf2-sha256', 'PBKDF2-HMAC-SHA-256'),
     outputBox('pbkdf2-sha512', 'PBKDF2-HMAC-SHA-512'),
     outputBox('pbkdf2-bench', 'Benchmark Results'),
     attackBox('pbkdf2-attack'),
   );
+}
+
+/**
+ * Live PBKDF2 iteration-chain visual. A dedicated slider (1…16 iterations, kept
+ * small so every link is visible and the XOR is legible) drives a real
+ * pbkdf2Chain() computation for output block 1: each U_j link and the running
+ * XOR accumulator T_1 are shown, so raising the count visibly adds links and
+ * folds more work into the same block. This is the mechanism the panel note has
+ * always claimed but never showed.
+ */
+function buildPbkdf2ChainViz(): HTMLElement {
+  const wrap = el('section', { className: 'pb-chain', 'aria-labelledby': 'pb-chain-h' });
+
+  const slider = el('input', {
+    id: 'pb-chain-iter', type: 'range', className: 'input-field',
+    min: '1', max: '16', value: '4', step: '1', 'aria-label': 'Iterations to visualize',
+  });
+  const valSpan = el('span', { className: 'range-value', id: 'pb-chain-iter-value', 'aria-live': 'polite' }, '4');
+  const ctrl = el('div', { className: 'input-group pb-chain-ctrl' },
+    el('label', { 'for': 'pb-chain-iter' }, 'Iterations to visualize (c)'),
+    slider, valSpan);
+
+  const links = el('div', { className: 'pb-links', id: 'pb-links', role: 'list', 'aria-label': 'PBKDF2 iteration links' });
+  const accBox = el('div', { className: 'pb-acc', id: 'pb-acc' },
+    el('span', { className: 'pb-acc-k' }, 'T₁ = U₁ ⊕ U₂ ⊕ … (running XOR — the block PBKDF2 actually outputs)'),
+    el('span', { className: 'pb-acc-v', id: 'pb-acc-v' }, '—'));
+
+  const render = async () => {
+    const c = parseInt(slider.value, 10) || 1;
+    valSpan.textContent = String(c);
+    const pw = (document.getElementById('pbkdf2-pw') as HTMLInputElement)?.value ?? 'correct horse battery staple';
+    const salt = (document.getElementById('pbkdf2-salt') as HTMLInputElement)?.value ?? 'unique-random-salt';
+    const res = await pbkdf2Chain(pw, salt, c, 16);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    links.innerHTML = '';
+    res.steps.forEach((s, i) => {
+      const src = s.j === 1 ? 'HMAC(pw, salt ‖ INT(1))' : `HMAC(pw, U${s.j - 1})`;
+      const node = el('div', { className: 'pb-link', role: 'listitem' },
+        el('span', { className: 'pb-link-h' }, `U${s.j}`),
+        el('span', { className: 'pb-link-src' }, src),
+        el('span', { className: 'pb-link-v' }, shortHex(s.uHex, 24)),
+      );
+      links.append(node);
+      if (!reduce) {
+        node.classList.add('pb-link-enter');
+        setTimeout(() => node.classList.remove('pb-link-enter'), 30 + i * 90);
+      }
+    });
+    const accV = document.getElementById('pb-acc-v');
+    if (accV) accV.textContent = shortHex(res.finalHex, 32);
+    announce('pbkdf2-live',
+      `${c} iteration${c === 1 ? '' : 's'}: ${c} link${c === 1 ? '' : 's'} XORed into one output block.`);
+  };
+
+  slider.addEventListener('input', () => { void render(); });
+  // Render once on load so the panel isn't empty before first interaction.
+  queueMicrotask(() => { void render(); });
+
+  wrap.append(
+    el('h3', { id: 'pb-chain-h', className: 'diagram-h' }, 'How it works: the iteration chain'),
+    el('p', { className: 'diagram-lead' },
+      'PBKDF2 makes one guess expensive by hashing in a chain: U₁ = HMAC(password, salt), then each ',
+      'U feeds the next — U₂ = HMAC(password, U₁), and so on. All the links are XORed together into the ',
+      'output block. More iterations = a longer chain = more work per guess, for you AND the attacker. ',
+      'Slide to add links (kept small here so the chain stays readable; real PBKDF2 runs hundreds of thousands).',
+    ),
+    ctrl,
+    el('div', { className: 'pb-chain-body' }, links, accBox),
+  );
+  return wrap;
 }
 
 /* ------------------------------------------------------------------ */
@@ -328,8 +532,10 @@ function buildScryptPanel(): HTMLElement {
   });
 
   const note = infoBox(
-    'scrypt uses ROMix and BlockMix to create memory-hard computation. Memory access patterns resist GPU attacks because ' +
-    'GPUs have limited on-chip memory per core. Memory estimate: 128 × N × r bytes (RFC 7914 §2).'
+    'scrypt fills a big array of pseudorandom blocks, then reads them back in a password-dependent order that a GPU ' +
+    'cannot predict or skip (RFC 7914 calls these steps ROMix — the fill-then-shuffle-read loop — and BlockMix — the ' +
+    'per-block mixing function). Memory access patterns resist GPU attacks because GPUs have limited on-chip memory per ' +
+    'core. Memory estimate: 128 × N × r bytes (RFC 7914 §2).'
   );
 
   return panel('panel-scrypt',
@@ -381,9 +587,10 @@ function buildArgon2Panel(): HTMLElement {
   });
 
   const note = infoBox(
-    'Argon2id combines data-dependent (Argon2d) and data-independent (Argon2i) memory access patterns. ' +
-    'Argon2d resists GPU/ASIC but is vulnerable to side-channel; Argon2i resists side-channel but is weaker against GPU. ' +
-    'Argon2id uses Argon2i for the first pass and Argon2d thereafter — the best of both. ' +
+    'Argon2id combines two memory-access styles: data-dependent (where to read next depends on the secret — harder for ' +
+    'GPUs, but the access pattern can leak via side-channels) and data-independent (a fixed, secret-free pattern — ' +
+    'side-channel safe, but a bit weaker against GPUs). ' +
+    'Argon2id uses the data-independent style for the first pass and the data-dependent style thereafter — the best of both. ' +
     'OWASP recommends: t=2, m=19456 (19 MiB), p=1. Memory cost makes ASIC/GPU attacks economically impractical.'
   );
 
@@ -413,7 +620,7 @@ function buildDecisionPanel(): HTMLElement {
     radioOption('dt-multi', 'no', 'No', true),
   );
   const q3 = el('fieldset', { className: 'decision-question' },
-    el('legend', {}, '3. Are you in a legacy/FIPS-constrained environment?'),
+    el('legend', {}, '3. Are you in a legacy or FIPS-constrained environment? (FIPS = US government crypto-approval standard; it only blesses older KDFs like PBKDF2)'),
     radioOption('dt-legacy', 'yes', 'Yes'),
     radioOption('dt-legacy', 'no', 'No', true),
   );
@@ -817,10 +1024,30 @@ function buildMemoryHardnessPanel(): HTMLElement {
     'password guess in parallel — the attack scales almost for free. scrypt and Argon2id force each guess to ' +
     'read and write a large block of memory in sequence. Memory bandwidth is shared and expensive, so the cores ' +
     'sit idle waiting for the bus. You cannot cheaply buy more bandwidth — which is why memory-hard KDFs resist ' +
-    'GPUs and ASICs where PBKDF2 collapses.'
+    'GPUs and ASICs where PBKDF2 collapses. Turn up the memory cost below and watch the wait get worse.'
   );
 
-  // Compute-bound illustration: many busy cores.
+  // Memory-cost control. Steps map to real, meaningful memory sizes so the
+  // learner is tuning the same knob as scrypt's N and Argon2id's m, and the
+  // grid scales to match — the animation now RESPONDS to their input.
+  const MEM_STEPS = [
+    { label: 'scrypt N=2¹², r=8 · 4 MiB', cells: 16 },
+    { label: 'scrypt N=2¹⁴, r=8 · 16 MiB (default)', cells: 36 },
+    { label: 'Argon2id m=19 MiB (OWASP)', cells: 49 },
+    { label: 'Argon2id m=64 MiB (hardened)', cells: 81 },
+    { label: 'scrypt N=2¹⁷, r=8 · 128 MiB', cells: 121 },
+  ];
+  const memSlider = el('input', {
+    id: 'mem-cost', type: 'range', className: 'input-field',
+    min: '0', max: String(MEM_STEPS.length - 1), value: '1', step: '1',
+    'aria-label': 'Memory cost to visualize',
+  });
+  const memVal = el('span', { className: 'range-value', id: 'mem-cost-value', 'aria-live': 'polite' }, MEM_STEPS[1].label);
+  const memCtrl = el('div', { className: 'input-group mem-cost-ctrl' },
+    el('label', { 'for': 'mem-cost' }, 'Memory cost (N for scrypt · m for Argon2id)'),
+    memSlider, memVal);
+
+  // Compute-bound illustration: many busy cores, always fully lit.
   const cores = el('div', { className: 'mem-cores', 'aria-hidden': 'true' });
   for (let i = 0; i < 48; i++) cores.append(el('span', { className: 'mem-core' }));
   const computeCard = el('div', { className: 'mem-card' },
@@ -829,36 +1056,79 @@ function buildMemoryHardnessPanel(): HTMLElement {
     el('p', { className: 'mem-caption' }, 'Every GPU core runs its own guess. Cheap to add thousands → embarrassingly parallel.'),
   );
 
-  // Memory-bound illustration: a grid that fills sequentially through one bus.
+  // Memory-bound illustration: a grid (sized to the chosen cost) that fills
+  // sequentially, plus a row of 48 GPU cores that STALL while it fills.
   const grid = el('div', { id: 'mem-grid', className: 'mem-grid', 'aria-hidden': 'true' });
-  const CELLS = 64;
-  for (let i = 0; i < CELLS; i++) grid.append(el('span', { className: 'mem-cell' }));
+  const stalled = el('div', { className: 'mem-stall', 'aria-hidden': 'true' });
+  for (let i = 0; i < 48; i++) stalled.append(el('span', { className: 'mem-core mem-core-stall' }));
   const memCard = el('div', { className: 'mem-card' },
     el('h3', {}, 'scrypt / Argon2id — memory-bound'),
     grid,
-    el('p', { className: 'mem-caption' }, 'Each guess must stream this whole block through one shared memory bus. Extra cores wait → no cheap parallelism.'),
+    el('p', { className: 'mem-caption', id: 'mem-cap' },
+      'Each guess must stream this whole block through one shared memory bus.'),
+    el('div', { className: 'mem-stall-wrap' },
+      el('span', { className: 'mem-stall-label' }, 'GPU cores waiting on the bus:'),
+      stalled),
   );
 
+  // Build the grid for the current step and reset the stall state.
+  const buildGrid = (cells: number) => {
+    grid.innerHTML = '';
+    const cols = Math.round(Math.sqrt(cells));
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    for (let i = 0; i < cells; i++) grid.append(el('span', { className: 'mem-cell' }));
+    stalled.classList.remove('mem-busy');
+  };
+  buildGrid(MEM_STEPS[1].cells);
+
   const live = liveRegion('mem-live');
-  const animateBtn = button('Animate memory access', 'Animate sequential memory access for a memory-hard KDF', () => {
+
+  let timers: ReturnType<typeof setTimeout>[] = [];
+  const runAnimation = () => {
+    timers.forEach(clearTimeout);
+    timers = [];
+    const step = MEM_STEPS[parseInt(memSlider.value, 10) || 0];
+    buildGrid(step.cells);
     const cells = Array.from(grid.querySelectorAll('.mem-cell')) as HTMLElement[];
-    cells.forEach(c => c.classList.remove('filled'));
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const cap = document.getElementById('mem-cap');
     if (reduce) {
       cells.forEach(c => c.classList.add('filled'));
-      announce('mem-live', 'Memory block filled — every cell must be touched per guess.');
+      if (cap) cap.textContent =
+        `${step.cells} memory cells to stream (${step.label}). Extra cores wait → no cheap parallelism.`;
+      announce('mem-live', `Memory block filled — ${step.cells} cells must be touched per guess for ${step.label}.`);
       return;
     }
-    announce('mem-live', 'Filling memory block one cell at a time through a single bus.');
-    cells.forEach((c, i) => setTimeout(() => {
-      c.classList.add('filled');
-      if (i === cells.length - 1) announce('mem-live', 'Memory block full. One guess done — and it cost the whole bus.');
-    }, i * 35));
+    // Fill duration scales with the chosen memory cost: bigger block, longer
+    // wait, so poking the knob visibly changes the time. Per-cell delay eases
+    // down as cells grow so the largest block stays watchable.
+    const perCell = Math.max(14, 60 - step.cells * 0.35);
+    stalled.classList.add('mem-busy');
+    if (cap) cap.textContent =
+      `Streaming ${step.cells} cells through one bus (${step.label}). While it fills, the 48 cores below stall.`;
+    announce('mem-live', `Filling ${step.cells} memory cells one at a time — ${step.label}. Cores stall until it finishes.`);
+    cells.forEach((c, i) => {
+      timers.push(setTimeout(() => {
+        c.classList.add('filled');
+        if (i === cells.length - 1) {
+          stalled.classList.remove('mem-busy');
+          announce('mem-live', 'Memory block full. One guess done — and it cost the whole bus. Cores resume.');
+        }
+      }, i * perCell));
+    });
+  };
+
+  memSlider.addEventListener('input', () => {
+    const step = MEM_STEPS[parseInt(memSlider.value, 10) || 0];
+    memVal.textContent = step.label;
+    buildGrid(step.cells);
   });
+
+  const animateBtn = button('Animate memory access', 'Animate sequential memory access for the selected memory cost', runAnimation);
 
   const grids = el('div', { className: 'mem-grids' }, computeCard, memCard);
 
-  return panel('panel-memory', heading, note, grids, animateBtn, live);
+  return panel('panel-memory', heading, note, memCtrl, grids, animateBtn, live);
 }
 
 function buildCrossLinks(): HTMLElement {

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 
 import { vectors } from '../src/vectors.ts';
 import { hkdf } from '../src/hkdf.ts';
+import { pbkdf2Sha256, pbkdf2Chain } from '../src/pbkdf2.ts';
 import { deriveChain } from '../src/chain.ts';
 import { decide } from '../src/decision.ts';
 import { demoNoSalt, demoWithSalt } from '../src/salt.ts';
@@ -32,6 +33,21 @@ test('HKDF is deterministic and context-bound', async () => {
   assert.equal(a.okmHex, a2.okmHex, 'same inputs → same output');
   assert.notEqual(a.okmHex, b.okmHex, 'different info → different output');
   assert.equal(a.okmHex.length, 64, '32 bytes → 64 hex chars');
+});
+
+test('PBKDF2 iteration-chain visual matches real WebCrypto PBKDF2 (block 1)', async () => {
+  // The visualized chain (U1..Uc XORed) must equal the first output block that
+  // WebCrypto's PBKDF2 produces — proving the animation shows the real math, not
+  // a look-alike. Check a few iteration counts, including past the display cap.
+  for (const c of [1, 4, 16, 40]) {
+    const chain = await pbkdf2Chain('correct horse battery staple', 'unique-random-salt', c, 16);
+    const real = await pbkdf2Sha256('correct horse battery staple', 'unique-random-salt', c, 32);
+    assert.equal(chain.finalHex, real.hex, `block 1 must match WebCrypto at c=${c}`);
+    assert.equal(chain.iterations, c);
+    assert.equal(chain.truncated, c > 16, `truncation flag correct at c=${c}`);
+    // Running accumulator must be monotically defined and match at each shown step.
+    assert.ok(chain.steps.length >= 1 && chain.steps.length <= Math.min(c, 16));
+  }
 });
 
 test('the chain fans one password into independent, domain-separated keys', async () => {

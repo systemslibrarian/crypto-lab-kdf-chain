@@ -998,6 +998,359 @@ h3 {
 }
 
 
+/* ================================================================ */
+/*  Teaching diagrams (shared)                                       */
+/* ================================================================ */
+
+.diagram-h {
+  font-size: 1rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.diagram-lead {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.diagram-lead strong { color: var(--text); }
+
+/* ---- Inline glossary term ---- */
+.gloss-def {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ================================================================ */
+/*  HKDF extract→expand diagram                                      */
+/* ================================================================ */
+
+.hkdf-diagram {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--bg);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.hkdf-phase { margin-top: 1rem; }
+
+.hkdf-phase-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.hkdf-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hkdf-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.7rem;
+  background-color: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hkdf-box-k {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.hkdf-box-v {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.hkdf-prk {
+  border-color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+}
+
+.hkdf-prk .hkdf-box-v { color: var(--accent); }
+
+.hkdf-op {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--bg-panel));
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  position: relative;
+  margin: 0.1rem 0 0.1rem 0.5rem;
+}
+
+.hkdf-op::before {
+  content: "↓";
+  position: absolute;
+  left: 0.5rem;
+  top: -1rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.hkdf-expand-formula {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.hkdf-term {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.hkdf-expand-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hkdf-empty,
+.pb-links:empty::after {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.hkdf-block {
+  border: 1px solid var(--success);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background-color: color-mix(in srgb, var(--success) 8%, var(--bg-panel));
+  padding: 0.45rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.hkdf-block-h {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.hkdf-block-feed {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.hkdf-block-v {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--success);
+  word-break: break-all;
+}
+
+.hkdf-block-enter,
+.pb-link-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+/* ================================================================ */
+/*  PBKDF2 iteration-chain visual                                    */
+/* ================================================================ */
+
+.pb-chain {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--bg);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.pb-chain-ctrl { margin-bottom: 0.75rem; max-width: 22rem; }
+
+.pb-chain-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pb-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.pb-link {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--bg-panel);
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.pb-link-h {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+.pb-link-src {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.pb-link-v {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.pb-acc {
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pb-acc-k {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pb-acc-v {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* ================================================================ */
+/*  Attacker-cost assumptions (inline details)                      */
+/* ================================================================ */
+
+.assumptions {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--bg-panel);
+  font-size: 0.82rem;
+}
+
+.assumptions > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.7rem;
+  font-weight: 600;
+  color: var(--text);
+  list-style-position: inside;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.assumptions > summary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.assumptions[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.assumptions-body {
+  padding: 0.5rem 0.7rem 0.6rem;
+}
+
+.assumptions-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ================================================================ */
+/*  Memory-hardness: stalled cores + scaled grid                    */
+/* ================================================================ */
+
+.mem-cost-ctrl { margin-bottom: 1rem; max-width: 30rem; }
+
+.mem-stall-wrap { margin-top: 0.7rem; }
+
+.mem-stall-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.mem-stall {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 3px;
+}
+
+.mem-core-stall {
+  background-color: var(--border);
+  opacity: 1;
+  transition: background 0.2s ease;
+}
+
+/* When the bus is busy, the cores go idle (dimmed, no longer "success" green). */
+.mem-stall.mem-busy .mem-core-stall {
+  background-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+  animation: mem-stall-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mem-stall-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ═══ Accessibility: WCAG AA contrast for teaching-diagram text ═══ */
+/* PRK / accumulator hex on accent-tinted panels, and expand-block text on
+   success-tinted panels, must clear 4.5:1 in BOTH themes. Light-theme --accent
+   (#0969da) and --success (#1a7f37) on their own 8–10% tints fall just short, so
+   pin darker, AA-safe values there; dark theme already passes but we set it
+   explicitly so future accent changes don't regress. */
+[data-theme="light"] .hkdf-prk .hkdf-box-v,
+[data-theme="light"] .pb-acc-v { color: #0550ae; }
+[data-theme="light"] .hkdf-block-v { color: #116329; }
+[data-theme="light"] .hkdf-block-feed { color: #4b535d; }
+[data-theme="dark"] .hkdf-block-feed { color: #9aa4ae; }
+
 /* ═══ Accessibility: WCAG AA contrast overrides (auto-added) ═══ */
 [data-theme="dark"] .btn:hover { background-color: #3f77b6; } /* was #58a6ff on #ffffff = 2.53:1 → 4.64:1 */
 [data-theme="light"] .chip-recommended { background-color: #258640; } /* was #2da44e on #ffffff = 3.22:1 → 4.60:1 */
