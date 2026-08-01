@@ -20,6 +20,12 @@ html { font-size: 16px; scroll-behavior: smooth; background-color: var(--bg); }
   --bg-panel:    #161b22;
   --bg-input:    #0d1117;
   --border:      #30363d;
+  /* Control boundaries only (input/select fields, theme toggle, cross-links,
+     GitHub badge). Those controls are filled with --bg-input or --bg-panel, which
+     sit at 1.07-1.09:1 against the panel or page behind them, so the border is
+     the sole boundary and WCAG 2.1 SC 1.4.11 requires 3:1. --border stays as-is
+     for decorative rules (panels, tables, diagrams, chain nodes). */
+  --border-strong: #5f6b78;
   --text:        #e6edf3;
   --text-muted:  #8b949e;
   --accent:      #58a6ff;
@@ -49,6 +55,7 @@ html { font-size: 16px; scroll-behavior: smooth; background-color: var(--bg); }
   --bg-panel:    #f6f8fa;
   --bg-input:    #ffffff;
   --border:      #d0d7de;
+  --border-strong: #7b8ea2;
   --text:        #1f2328;
   --text-muted:  #656d76;
   --accent:      #0969da;
@@ -115,7 +122,7 @@ body {
 /* ---- Theme toggle ---- */
 .theme-toggle {
   background-color: var(--bg-panel);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--text);
   width: 2.6rem; height: 2.6rem;
   border-radius: 50%;
@@ -242,7 +249,7 @@ body {
   min-height: 44px;
   background-color: var(--bg-input);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   width: 100%;
 }
@@ -520,7 +527,7 @@ input[type="range"]::-moz-range-thumb {
 .cross-link {
   display: inline-block;
   background-color: var(--bg-panel);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--accent);
   text-decoration: none;
   font-size: 0.85rem;
@@ -558,7 +565,7 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: 0.4rem;
   background-color: var(--bg-panel);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--text);
   text-decoration: none;
   padding: 0.4em 1em;
