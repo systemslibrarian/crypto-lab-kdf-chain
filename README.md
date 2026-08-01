@@ -2,7 +2,7 @@
 
 ## What It Is
 
-crypto-lab-kdf-chain is an interactive browser demo of four key derivation functions: HKDF (RFC 5869), PBKDF2 (RFC 8018), scrypt (RFC 7914), and Argon2id (RFC 9106). It shows what security problem each KDF solves, how their parameters affect cost, and why choosing the wrong one leads to real-world compromise. All four operate under a symmetric security model — they transform shared secrets or passwords into derived key material using HMAC-SHA-256 as the underlying pseudorandom function. The demo is entirely client-side: HKDF and PBKDF2 use the WebCrypto API; scrypt and Argon2id use @noble/hashes.
+crypto-lab-kdf-chain is an interactive browser demo of four key derivation functions: HKDF (RFC 5869), PBKDF2 (RFC 8018), scrypt (RFC 7914), and Argon2id (RFC 9106). It shows what security problem each KDF solves, how their parameters affect cost, and why choosing the wrong one leads to real-world compromise. All four operate under a symmetric security model — they transform shared secrets or passwords into derived key material on top of a keyed hash. HKDF and PBKDF2 use HMAC-SHA-256 directly; scrypt wraps PBKDF2-HMAC-SHA-256 around a Salsa20/8-based mixing core; Argon2id is built on BLAKE2b (RFC 9106 §1), not HMAC-SHA-256. The demo is entirely client-side: HKDF and PBKDF2 use the WebCrypto API; scrypt and Argon2id use @noble/hashes.
 
 ## When to Use It
 

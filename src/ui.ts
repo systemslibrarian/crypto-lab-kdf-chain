@@ -578,7 +578,7 @@ function buildArgon2Panel(): HTMLElement {
     'Argon2id combines two memory-access styles: data-dependent (where to read next depends on the secret — harder for ' +
     'GPUs, but the access pattern can leak via side-channels) and data-independent (a fixed, secret-free pattern — ' +
     'side-channel safe, but a bit weaker against GPUs). ' +
-    'Argon2id uses the data-independent style for the first pass and the data-dependent style thereafter — the best of both. ' +
+    'Argon2id uses the data-independent style for the first HALF of the first pass over memory and the data-dependent style for the rest (RFC 9106 §1) — the best of both. ' +
     'OWASP recommends: t=2, m=19456 (19 MiB), p=1. Memory cost makes ASIC/GPU attacks economically impractical.'
   );
 
