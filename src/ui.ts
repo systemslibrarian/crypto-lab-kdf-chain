@@ -1018,12 +1018,15 @@ function buildMemoryHardnessPanel(): HTMLElement {
   // Memory-cost control. Steps map to real, meaningful memory sizes so the
   // learner is tuning the same knob as scrypt's N and Argon2id's m, and the
   // grid scales to match — the animation now RESPONDS to their input.
+  // One cell is exactly one MiB. The grid used to apply an undocumented square-
+  // root scale, making a 32× memory difference look like only 7.5× while still
+  // labeling the endpoints 4 and 128 MiB.
   const MEM_STEPS = [
-    { label: 'scrypt N=2¹², r=8 · 4 MiB', cells: 16 },
-    { label: 'scrypt N=2¹⁴, r=8 · 16 MiB (default)', cells: 36 },
-    { label: 'Argon2id m=19 MiB (OWASP)', cells: 49 },
-    { label: 'Argon2id m=64 MiB (hardened)', cells: 81 },
-    { label: 'scrypt N=2¹⁷, r=8 · 128 MiB', cells: 121 },
+    { label: 'scrypt N=2¹², r=8 · 4 MiB', cells: 4 },
+    { label: 'scrypt N=2¹⁴, r=8 · 16 MiB (default)', cells: 16 },
+    { label: 'Argon2id m=19 MiB (OWASP)', cells: 19 },
+    { label: 'Argon2id m=64 MiB (hardened)', cells: 64 },
+    { label: 'scrypt N=2¹⁷, r=8 · 128 MiB', cells: 128 },
   ];
   const memSlider = el('input', {
     id: 'mem-cost', type: 'range', className: 'input-field',
@@ -1053,7 +1056,7 @@ function buildMemoryHardnessPanel(): HTMLElement {
     el('h3', {}, 'scrypt / Argon2id — memory-bound'),
     grid,
     el('p', { className: 'mem-caption', id: 'mem-cap' },
-      'Each guess must stream this whole block through one shared memory bus.'),
+      'Each cell is 1 MiB. Every guess must stream this whole linearly scaled block through one shared memory bus.'),
     el('div', { className: 'mem-stall-wrap' },
       el('span', { className: 'mem-stall-label' }, 'GPU cores waiting on the bus:'),
       stalled),

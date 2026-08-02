@@ -94,3 +94,15 @@ test('no WCAG A/AA violations in light theme', async ({ page }) => {
   await revealAll(page);
   await scan(page);
 });
+
+test('memory grid uses a true one-cell-per-MiB scale', async ({ page }) => {
+  await page.goto('.');
+  const slider = page.locator('#mem-cost');
+  await slider.fill('0');
+  await slider.dispatchEvent('input');
+  await expect(page.locator('#mem-grid .mem-cell')).toHaveCount(4);
+  await slider.fill('4');
+  await slider.dispatchEvent('input');
+  await expect(page.locator('#mem-grid .mem-cell')).toHaveCount(128);
+  await expect(page.locator('#mem-cap')).toContainText('1 MiB');
+});
