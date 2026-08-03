@@ -645,19 +645,13 @@ function buildDecisionPanel(): HTMLElement {
       el('td', {}, row.gpuResistance),
       el('td', {}, row.fips),
       el('td', {}, row.recommendedParams),
-      el('td', {}, statusChip(row.status).outerHTML),
+      // Append the chip ELEMENT. It used to be serialised to .outerHTML, dropped
+      // in as a text node, and then "re-parsed" out again with /Status: (.+)/ —
+      // a greedy match that swallowed the rest of the serialised tag, so every
+      // Status cell rendered (and announced, via aria-label) literal markup:
+      //   RECOMMENDED DEFAULT">RECOMMENDED DEFAULT</span>
+      el('td', {}, statusChip(row.status)),
     ));
-  });
-  // Re-parse the HTML in status column
-  tbody.querySelectorAll('td:last-child').forEach(td => {
-    const raw = td.textContent || '';
-    if (raw) {
-      const match = raw.match(/Status: (.+)/);
-      if (match) {
-        td.innerHTML = '';
-        td.append(statusChip(match[1]));
-      }
-    }
   });
   table.append(thead, tbody);
 

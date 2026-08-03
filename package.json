@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "node --test",
     "test:a11y": "playwright test",
+    "test:e2e": "playwright test",
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
