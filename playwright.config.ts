@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4222;
+const PORT = 4656;
 const BASE = '/crypto-lab-kdf-chain/';
 
 export default defineConfig({
