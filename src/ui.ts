@@ -34,13 +34,69 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
+/**
+ * `aria-label` is PROHIBITED on an element with no role, and a `<span>` has
+ * none. The browser discards it, axe files the finding under `incomplete`
+ * rather than `violations` so a violations-only gate never sees it, and the
+ * name a screen reader actually announces comes from the chip's own text
+ * anyway — which is exactly what the label was duplicating. So the chip simply
+ * says what it says. Where the word "Status" was doing real work (the
+ * comparison table's last column) it is already the column header.
+ */
 function statusChip(label: string): HTMLElement {
   const cls = label.includes('DEFAULT') ? 'chip-recommended-default'
     : label.includes('RECOMMENDED') ? 'chip-recommended'
     : label.includes('ACCEPTABLE') ? 'chip-acceptable'
     : 'chip-info';
-  const chip = el('span', { className: `status-chip ${cls}`, 'aria-label': `Status: ${label}` }, label);
-  return chip;
+  return el('span', { className: `status-chip ${cls}` }, label);
+}
+
+/**
+ * A container is a `role="list"` only while it holds `listitem` children.
+ *
+ * Declaring the role on an empty box — or on one holding a placeholder
+ * paragraph — is an `aria-required-children` failure on every page load, and it
+ * also lies to a screen reader about there being a list to navigate into. This
+ * page shipped both shapes: `#hkdf-d-blocks` carried `role="list"` around a
+ * "Derive a key to see T(1), T(2), …" `<p>` (a critical axe violation at first
+ * paint), and `#cost-bars` carried it around nothing at all. So the role is
+ * attached when the items are, and taken off when they are cleared — which also
+ * keeps the `role="listitem"` children from ever being orphaned.
+ */
+function setListRole(box: HTMLElement, label: string, populated: boolean): void {
+  if (populated) {
+    box.setAttribute('role', 'list');
+    box.setAttribute('aria-label', label);
+  } else {
+    box.removeAttribute('role');
+    box.removeAttribute('aria-label');
+  }
+}
+
+/**
+ * Report a failed derivation where a sighted reader can see it.
+ *
+ * Every panel used to hand its error to `announce()` alone, which writes into
+ * an `.sr-only` live region: ask HKDF for more output than RFC 5869 permits and
+ * the button appeared to do nothing whatsoever. WCAG 3.3.1 asks for the error
+ * to be described to the user in text, and text nobody can see is not that. The
+ * timing line is already an `aria-live="polite"` element sitting directly under
+ * the button, so it carries the message visibly while the assertive
+ * announcement still fires for a screen reader.
+ */
+function showError(timingId: string, liveId: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  const t = document.getElementById(timingId);
+  if (t) {
+    t.textContent = msg;
+    t.classList.add('timing-error');
+  }
+  announce(liveId, `Error: ${msg}`);
+}
+
+/** Clear a previous error before a fresh attempt, so it cannot look current. */
+function clearError(timingId: string): void {
+  document.getElementById(timingId)?.classList.remove('timing-error');
 }
 
 function inputGroup(id: string, labelText: string, type: string, value: string, extra?: Record<string, string>): HTMLElement {
@@ -62,10 +118,23 @@ function inputGroup(id: string, labelText: string, type: string, value: string, 
   return wrap;
 }
 
+/**
+ * A labelled, focusable output pane.
+ *
+ * Both halves used to carry a prohibited `aria-label`: the `<span>` duplicated
+ * its own text into one, and the `<pre>` — which has no role either — took a
+ * second. Neither reached a screen reader. The pane is keyboard-focusable
+ * because `.output-hex` scrolls (WCAG 2.1.1), and a focusable scrolling region
+ * of related content is a `group`, which is a role that DOES accept a name —
+ * so the label span becomes the name properly, through `aria-labelledby`.
+ */
 function outputBox(id: string, label: string): HTMLElement {
   const wrap = el('div', { className: 'output-group' });
-  const lbl = el('span', { className: 'output-label', 'aria-label': label }, label);
-  const box = el('pre', { className: 'output-hex', id, 'aria-label': `${label} output`, tabindex: '0' }, '—');
+  const lbl = el('span', { className: 'output-label', id: `${id}-label` }, label);
+  const box = el('pre', {
+    className: 'output-hex', id, role: 'group',
+    'aria-labelledby': `${id}-label`, tabindex: '0',
+  }, '—');
   wrap.append(lbl, box);
   return wrap;
 }
@@ -151,10 +220,13 @@ function readTarget(id: string): Target {
 /** Output region for an attacker-cost projection (styled, aria-live). */
 function attackBox(id: string): HTMLElement {
   const wrap = el('div', { className: 'attack-group' });
-  const lbl = el('span', { className: 'output-label' }, '⚔️ Attacker cost (offline GPU search)');
+  const lbl = el('span', { className: 'output-label', id: `${id}-label` },
+    '⚔️ Attacker cost (offline GPU search)');
+  // `role="group"` for the same reason as `outputBox`: a bare `<pre>` has no
+  // role, so its `aria-label` was prohibited and silently dropped.
   const box = el('pre', {
-    className: 'attack-out', id,
-    'aria-label': 'Attacker cost estimate', 'aria-live': 'polite', tabindex: '0',
+    className: 'attack-out', id, role: 'group',
+    'aria-labelledby': `${id}-label`, 'aria-live': 'polite', tabindex: '0',
   }, 'Derive a key to estimate attacker cost.');
   wrap.append(lbl, box, attackerAssumptions());
   return wrap;
@@ -203,6 +275,7 @@ function buildHkdfPanel(): HTMLElement {
     const salt = (document.getElementById('hkdf-salt') as HTMLInputElement).value;
     const info = (document.getElementById('hkdf-info') as HTMLInputElement).value;
     const len = parseInt((document.getElementById('hkdf-len') as HTMLInputElement).value, 10) || 32;
+    clearError('hkdf-timing');
     try {
       const r = await hkdf(ikm, salt, info, len);
       setOutput('hkdf-prk', r.prkHex);
@@ -214,7 +287,7 @@ function buildHkdfPanel(): HTMLElement {
       renderHkdfDiagram({ salt: salt || '(none → zero-filled)', ikm, info, prkHex: r.prkHex, blocks: r.blocks });
       announce('hkdf-live', `HKDF derivation complete in ${r.timeMs.toFixed(2)} milliseconds`);
     } catch (err) {
-      announce('hkdf-live', `Error: ${(err as Error).message}`);
+      showError('hkdf-timing', 'hkdf-live', err);
     }
   });
 
@@ -280,7 +353,11 @@ function buildHkdfDiagram(): HTMLElement {
         el('span', { className: 'hkdf-term' }, 'i'),
         '). The previous block feeds the next — that feedback is what makes the output as long as you need.',
       ),
-      el('div', { className: 'hkdf-expand-blocks', id: 'hkdf-d-blocks', role: 'list', 'aria-label': 'HKDF expand blocks' },
+      // No `role="list"` here: at first paint this box holds a placeholder
+      // paragraph, and a list whose only child is a <p> is an
+      // `aria-required-children` violation on every load. `renderHkdfDiagram`
+      // attaches the role at the moment it attaches the listitems.
+      el('div', { className: 'hkdf-expand-blocks', id: 'hkdf-d-blocks' },
         el('p', { className: 'hkdf-empty' }, 'Derive a key to see T(1), T(2), … build up.')),
     ),
   );
@@ -298,6 +375,7 @@ function renderHkdfDiagram(d: { salt: string; ikm: string; info: string; prkHex:
   const box = document.getElementById('hkdf-d-blocks');
   if (!box) return;
   box.innerHTML = '';
+  setListRole(box, 'HKDF expand blocks', d.blocks.length > 0);
   d.blocks.forEach((b, i) => {
     const prev = i === 0 ? 'T(0) = empty' : `T(${i})`;
     const block = el('div', { className: 'hkdf-block', role: 'listitem' },
@@ -338,6 +416,7 @@ function buildPbkdf2Panel(): HTMLElement {
     const salt = (document.getElementById('pbkdf2-salt') as HTMLInputElement).value;
     const iter = parseInt((document.getElementById('pbkdf2-iter') as HTMLInputElement).value, 10) || 600000;
     const len = parseInt((document.getElementById('pbkdf2-len') as HTMLInputElement).value, 10) || 32;
+    clearError('pbkdf2-timing');
     try {
       const [r256, r512] = await Promise.all([
         pbkdf2Sha256(pw, salt, iter, len),
@@ -350,7 +429,7 @@ function buildPbkdf2Panel(): HTMLElement {
       setOutput('pbkdf2-attack', crackSummary(pbkdf2Attack(iter, 'SHA-256'), readTarget('pbkdf2-target')));
       announce('pbkdf2-live', `PBKDF2 derivation complete. SHA-256 in ${r256.timeMs.toFixed(2)} ms, SHA-512 in ${r512.timeMs.toFixed(2)} ms`);
     } catch (err) {
-      announce('pbkdf2-live', `Error: ${(err as Error).message}`);
+      showError('pbkdf2-timing', 'pbkdf2-live', err);
     }
   });
 
@@ -359,13 +438,14 @@ function buildPbkdf2Panel(): HTMLElement {
     const salt = (document.getElementById('pbkdf2-salt') as HTMLInputElement).value;
     const len = parseInt((document.getElementById('pbkdf2-len') as HTMLInputElement).value, 10) || 32;
     announce('pbkdf2-live', 'Running benchmark…');
+    clearError('pbkdf2-timing');
     try {
       const results = await pbkdf2Benchmark(pw, salt, [100_000, 600_000, 1_000_000], len);
       const text = results.map(r => `${(r.iterations / 1000).toFixed(0)}k iterations: ${r.timeMs.toFixed(2)} ms`).join('\n');
       setOutput('pbkdf2-bench', text);
       announce('pbkdf2-live', 'Benchmark complete');
     } catch (err) {
-      announce('pbkdf2-live', `Error: ${(err as Error).message}`);
+      showError('pbkdf2-timing', 'pbkdf2-live', err);
     }
   });
 
@@ -405,7 +485,8 @@ function buildPbkdf2ChainViz(): HTMLElement {
     el('label', { 'for': 'pb-chain-iter' }, 'Iterations to visualize (c)'),
     slider, valSpan);
 
-  const links = el('div', { className: 'pb-links', id: 'pb-links', role: 'list', 'aria-label': 'PBKDF2 iteration links' });
+  // The role is attached by `render()` once the links exist; see `setListRole`.
+  const links = el('div', { className: 'pb-links', id: 'pb-links' });
   const accBox = el('div', { className: 'pb-acc', id: 'pb-acc' },
     el('span', { className: 'pb-acc-k' }, 'T₁ = U₁ ⊕ U₂ ⊕ … (running XOR — the block PBKDF2 actually outputs)'),
     el('span', { className: 'pb-acc-v', id: 'pb-acc-v' }, '—'));
@@ -418,6 +499,7 @@ function buildPbkdf2ChainViz(): HTMLElement {
     const res = await pbkdf2Chain(pw, salt, c, 16);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     links.innerHTML = '';
+    setListRole(links, 'PBKDF2 iteration links', res.steps.length > 0);
     res.steps.forEach((s, i) => {
       const src = s.j === 1 ? 'HMAC(pw, salt ‖ INT(1))' : `HMAC(pw, U${s.j - 1})`;
       const node = el('div', { className: 'pb-link', role: 'listitem' },
@@ -483,6 +565,7 @@ function buildScryptPanel(): HTMLElement {
     const r = parseInt((document.getElementById('scrypt-r') as HTMLInputElement).value, 10) || 8;
     const p = parseInt((document.getElementById('scrypt-p') as HTMLInputElement).value, 10) || 1;
     const len = parseInt((document.getElementById('scrypt-len') as HTMLInputElement).value, 10) || 32;
+    clearError('scrypt-timing');
     try {
       const res = await deriveScrypt(pw, salt, N, r, p, len);
       setOutput('scrypt-out', res.hex);
@@ -491,7 +574,7 @@ function buildScryptPanel(): HTMLElement {
       setOutput('scrypt-attack', crackSummary(scryptAttack(N, r), readTarget('scrypt-target')));
       announce('scrypt-live', `scrypt derivation complete in ${res.timeMs.toFixed(2)} ms, estimated memory ${res.memoryEstimateMB.toFixed(2)} MB`);
     } catch (err) {
-      announce('scrypt-live', `Error: ${(err as Error).message}`);
+      showError('scrypt-timing', 'scrypt-live', err);
     }
   });
 
@@ -502,6 +585,7 @@ function buildScryptPanel(): HTMLElement {
     const p = parseInt((document.getElementById('scrypt-p') as HTMLInputElement).value, 10) || 1;
     const len = parseInt((document.getElementById('scrypt-len') as HTMLInputElement).value, 10) || 32;
     announce('scrypt-live', 'Running N-value comparison…');
+    clearError('scrypt-timing');
     try {
       const results: (Awaited<ReturnType<typeof deriveScrypt>> | null)[] = [];
       for (const N of [2 ** 14, 2 ** 17, 2 ** 20]) {
@@ -515,7 +599,7 @@ function buildScryptPanel(): HTMLElement {
       setOutput('scrypt-bench', text);
       announce('scrypt-live', 'N-value comparison complete');
     } catch (err) {
-      announce('scrypt-live', `Error: ${(err as Error).message}`);
+      showError('scrypt-timing', 'scrypt-live', err);
     }
   });
 
@@ -562,6 +646,7 @@ function buildArgon2Panel(): HTMLElement {
     const m = parseInt((document.getElementById('argon2-m') as HTMLInputElement).value, 10) || 19456;
     const p = parseInt((document.getElementById('argon2-p') as HTMLInputElement).value, 10) || 1;
     const dkLen = parseInt((document.getElementById('argon2-len') as HTMLInputElement).value, 10) || 32;
+    clearError('argon2-timing');
     try {
       const res = await deriveArgon2id(pw, salt, t, m, p, dkLen);
       setOutput('argon2-out', res.hex);
@@ -570,7 +655,7 @@ function buildArgon2Panel(): HTMLElement {
       setOutput('argon2-attack', crackSummary(argon2Attack(t, m), readTarget('argon2-target')));
       announce('argon2-live', `Argon2id derivation complete in ${res.timeMs.toFixed(2)} milliseconds`);
     } catch (err) {
-      announce('argon2-live', `Error: ${(err as Error).message}`);
+      showError('argon2-timing', 'argon2-live', err);
     }
   });
 
@@ -763,6 +848,7 @@ function buildChainPanel(): HTMLElement {
       .map(id => (document.getElementById(id) as HTMLInputElement).value)
       .filter(s => s.trim().length > 0);
     announce('chain-live', 'Running KDF chain…');
+    clearError('chain-timing');
     try {
       const r = await deriveChain(pw, salt, infos);
       flow.innerHTML = '';
@@ -779,7 +865,7 @@ function buildChainPanel(): HTMLElement {
         `Whole chain: ${r.totalTimeMs.toFixed(2)} ms (${r.links.length} keys from one password)`;
       announce('chain-live', `Chain complete. ${r.links.length} independent keys derived in ${r.totalTimeMs.toFixed(0)} milliseconds`);
     } catch (err) {
-      announce('chain-live', `Error: ${(err as Error).message}`);
+      showError('chain-timing', 'chain-live', err);
     }
   });
 
@@ -793,10 +879,18 @@ function buildChainPanel(): HTMLElement {
   return panel('panel-chain', heading, note, form, runBtn, live, timing, flow);
 }
 
+let chainNodeSeq = 0;
+
 function chainNode(kind: string, label: string, value: string, sub: string): HTMLElement {
+  // Same prohibited-`aria-label`-on-a-`<pre>` fix as `outputBox`: name the
+  // focusable value pane from the label already sitting above it.
+  const labelId = `chain-node-label-${++chainNodeSeq}`;
   return el('div', { className: `chain-node chain-${kind}` },
-    el('span', { className: 'chain-node-label' }, label),
-    el('pre', { className: 'chain-node-value', tabindex: '0', 'aria-label': `${label} value` }, value),
+    el('span', { className: 'chain-node-label', id: labelId }, label),
+    el('pre', {
+      className: 'chain-node-value', tabindex: '0',
+      role: 'group', 'aria-labelledby': labelId,
+    }, value),
     el('span', { className: 'chain-node-sub' }, sub),
   );
 }
@@ -823,7 +917,8 @@ function buildCostPanel(): HTMLElement {
   );
 
   const live = liveRegion('cost-live');
-  const bars = el('div', { id: 'cost-bars', className: 'cost-bars', role: 'list', 'aria-label': 'KDF cost comparison' });
+  // Empty until "Run All KDFs" is pressed, so it is not a list until then.
+  const bars = el('div', { id: 'cost-bars', className: 'cost-bars' });
 
   const runBtn = button('Run All KDFs', 'Run the same password through every password KDF and compare', async () => {
     const pw = (document.getElementById('cost-pw') as HTMLInputElement).value;
@@ -831,6 +926,7 @@ function buildCostPanel(): HTMLElement {
     const target = readTarget('cost-target');
     announce('cost-live', 'Running every KDF…');
     bars.innerHTML = '';
+    setListRole(bars, 'KDF cost comparison', false);
     try {
       const pb100 = await pbkdf2Sha256(pw, salt, 100_000, 32);
       const pb600 = await pbkdf2Sha256(pw, salt, 600_000, 32);
@@ -844,6 +940,7 @@ function buildCostPanel(): HTMLElement {
         { name: 'Argon2id (19 MiB)', ms: ar.timeMs, est: argon2Attack(2, 19456), warn: false },
       ];
       const maxMs = Math.max(...rows.map(r => r.ms));
+      setListRole(bars, 'KDF cost comparison', rows.length > 0);
       rows.forEach(r => bars.append(costBar(r.name, r.ms, maxMs, crackSummary(r.est, target), r.warn)));
       announce('cost-live', `Comparison complete for ${rows.length} KDFs against ${target.label}`);
     } catch (err) {
@@ -922,10 +1019,13 @@ function buildVectorsPanel(): HTMLElement {
 
 function vectorRow(r: { ref: string; field: string; expected: string; got: string; pass: boolean }): HTMLElement {
   const row = el('div', { className: `vector-row ${r.pass ? 'vector-pass' : 'vector-fail'}` });
-  const badge = el('span', {
-    className: 'vector-badge',
-    'aria-label': r.pass ? 'Pass' : 'Fail',
-  }, r.pass ? '✅ PASS' : '❌ FAIL');
+  // The badge used to carry `aria-label="Pass"` on a role-less `<span>`, which
+  // is prohibited and discarded — leaving a screen reader to read the emoji
+  // itself. Hiding just the emoji keeps the word, which was the whole intent.
+  const badge = el('span', { className: 'vector-badge' },
+    el('span', { 'aria-hidden': 'true' }, r.pass ? '✅' : '❌'),
+    ' ',
+    r.pass ? 'PASS' : 'FAIL');
   const title = el('span', { className: 'vector-title' }, `${r.ref} — ${r.field}`);
   const detail = el('pre', { className: 'vector-detail', tabindex: '0' },
     `expected: ${r.expected}\n   got:  ${r.got}`);

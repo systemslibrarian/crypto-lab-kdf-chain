@@ -20,11 +20,20 @@ html { font-size: 16px; scroll-behavior: smooth; background-color: var(--bg); }
   --bg-panel:    #161b22;
   --bg-input:    #0d1117;
   --border:      #30363d;
-  /* Control boundaries only (input/select fields, theme toggle, cross-links,
-     GitHub badge). Those controls are filled with --bg-input or --bg-panel, which
-     sit at 1.07-1.09:1 against the panel or page behind them, so the border is
-     the sole boundary and WCAG 2.1 SC 1.4.11 requires 3:1. --border stays as-is
-     for decorative rules (panels, tables, diagrams, chain nodes). */
+  /* Any boundary or graphic that CARRIES MEANING, and so owes 3:1 under WCAG 2.1
+     SC 1.4.11 — not just the fields this token was first written for.
+     The note that used to sit here claimed "control boundaries only (input/select
+     fields, theme toggle, cross-links, GitHub badge)", and that claim was itself
+     the defect: it reads as an audit but was only a list of the four rules that
+     happened to use the token. Three graphics whose entire job is to show an
+     EXTENT were left on --border and measured, from real screenshot pixels,
+     1.42-1.55:1 in dark and 1.36-1.45:1 in light — the cost-comparison track
+     (the bar's denominator), the memory grid, and the stalled-core grid. Their
+     FILLS all passed; the thing a reader measures a fill against was not on
+     screen at all. So: if removing it would leave a reader unable to see where a
+     control or a meaningful graphic begins and ends, it uses this token.
+     --border stays for pure decoration — panel edges, table gridlines, the
+     diagram boxes whose contents are text that carries the meaning itself. */
   --border-strong: #5f6b78;
   --text:        #e6edf3;
   --text-muted:  #8b949e;
@@ -358,6 +367,17 @@ input[type="range"]::-moz-range-thumb {
   font-size: 0.85rem;
   color: var(--accent);
   margin: 0.5rem 0;
+}
+
+/* A rejected derivation has to be visible, not only announced. Every panel used
+   to report its failure by writing into an `.sr-only` live region alone, so a
+   sighted visitor who asked HKDF for 9000 bytes of output — past RFC 5869's
+   255-block cap — pressed the button and saw absolutely nothing change. WCAG
+   3.3.1 wants the error described to the user in text; text nobody can see is
+   not that. --error measures 5.16:1 on the panel in dark and 5.03:1 in light. */
+.timing-error {
+  color: var(--error);
+  font-weight: 600;
 }
 
 /* ================================================================ */
@@ -738,9 +758,16 @@ select.input-field {
   color: var(--accent);
 }
 
+/* The bar's DENOMINATOR. A cost bar means "this much of the slowest KDF's
+   time", and that reading needs the full track to be visible, not just the
+   filled part: for PBKDF2-100k the fill is ~4% of the width and the other 96%
+   is what tells you it is fast. Measured from screenshot pixels on --border,
+   the empty remainder ran 1.42:1 (dark) and 1.36:1 (light) against the panel —
+   a ratio nobody can see — while the fill itself measured 3.73:1 and 7.13:1
+   and so looked fine to every fill-only check. SC 1.4.11 wants 3:1 here. */
 .cost-track {
   background-color: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   height: 1.5rem;
   overflow: hidden;
@@ -965,10 +992,21 @@ select.input-field {
   gap: 3px;
 }
 
+/* An UNFILLED cell is drawn as a ring, not a wash.
+   These cells are the panel's whole argument — "this many MiB must be streamed
+   per guess" — so the block's extent has to be visible before it fills, and on
+   --border it was not: 1.55:1 (dark) and 1.45:1 (light) against the card,
+   measured from screenshot pixels, for 73% of the graphic's area. Filling them
+   was never the problem; the accent fill measured 7.48:1 and 5.19:1.
+   Outline-vs-solid also means filled and unfilled differ in FORM and not only
+   in hue, so the state is not carried by colour alone (SC 1.4.1). A ring is
+   used rather than a paler fill because no single fill can be 3:1 from the card
+   AND 3:1 from the accent at the same time in this palette. */
 .mem-cell {
   aspect-ratio: 1;
   border-radius: 2px;
-  background-color: var(--border);
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
   transition: background 0.2s ease;
 }
 
@@ -1123,8 +1161,11 @@ h3 {
   gap: 0.4rem;
 }
 
-.hkdf-empty,
-.pb-links:empty::after {
+/* `.pb-links:empty::after` used to share this rule. It could never render: the
+   selector styles a pseudo-element that declares no `content`, so nothing is
+   generated and the declarations landed on a box that does not exist. Dropped
+   rather than left to read as an empty-state that ships. */
+.hkdf-empty {
   font-size: 0.82rem;
   color: var(--text-muted);
   font-style: italic;
@@ -1320,21 +1361,33 @@ h3 {
   gap: 3px;
 }
 
+/* Idle cores: a ring, for the same reason as .mem-cell. On --border these 48
+   squares measured 1.55:1 (dark) / 1.45:1 (light) against the card. */
 .mem-core-stall {
-  background-color: var(--border);
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
   opacity: 1;
   transition: background 0.2s ease;
 }
 
-/* When the bus is busy, the cores go idle (dimmed, no longer "success" green). */
+/* When the bus is busy, the cores stall — solid amber, so busy and idle differ
+   in form (solid vs ring) as well as hue.
+   The previous pairing was a 55% warning/border mix under an opacity pulse that
+   bottomed out at 0.4. Sampled mid-pulse from real frames that landed at
+   1.78-1.84:1 (dark) and 1.54-1.91:1 (light) — the amber was doing no work at
+   all. Nothing arithmetic would have caught it: the mix on its own computes
+   3.82:1 in dark, and only the compositing of the running animation takes it
+   under. The pulse is kept (it is what says "waiting") but its floor is raised
+   to 0.8, which holds 5.16:1 dark / 3.39:1 light at the dimmest frame. */
 .mem-stall.mem-busy .mem-core-stall {
-  background-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+  background-color: var(--warning);
+  box-shadow: inset 0 0 0 1px var(--warning);
   animation: mem-stall-pulse 1s ease-in-out infinite;
 }
 
 @keyframes mem-stall-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
 }
 
 /* ═══ Accessibility: WCAG AA contrast for teaching-diagram text ═══ */

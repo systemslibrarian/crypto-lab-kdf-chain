@@ -674,7 +674,13 @@ test('comparison table renders real status chips, not serialised markup', async 
     'RECOMMENDED DEFAULT',
   ]);
   for (const c of chips) {
-    expect(c.aria).toBe(`Status: ${c.text}`);
+    // The chip used to carry `aria-label="Status: <text>"`. `aria-label` is
+    // PROHIBITED on a role-less <span>: the browser discards it, so the name a
+    // screen reader announces was always the chip's own text — which is what
+    // the assertion above already pins. Asserting the attribute was asserting a
+    // value nothing on the page ever used, and it held a real
+    // `aria-prohibited-attr` finding in place. Its absence is now the claim.
+    expect(c.aria).toBe('');
     expect(c.text).not.toContain('<');
     expect(c.text).not.toContain('>');
     expect(c.text).not.toContain('span');

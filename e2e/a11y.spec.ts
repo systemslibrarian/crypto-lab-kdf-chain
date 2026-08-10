@@ -1,108 +1,51 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { boot, driveAllStates, NARROW, reportCollected, watchPageErrors } from './gate';
 
 /**
- * WCAG regression gate. Deploys are already gated on the RFC known-answer
- * vectors; this gates them on accessibility the same way. Scans the full page
- * in both themes, with every collapsible expanded and every interactive panel
- * exercised so dynamically-rendered content (cost bars, chain flow, vector
- * rows, decision result) is present in the accessibility tree when scanned.
+ * WCAG A/AA regression gate. Deploys are already gated on the RFC known-answer
+ * vectors; this gates them on accessibility the same way.
+ *
+ * The lab is driven along everything it teaches: the arrival state, where all
+ * ten panels hold placeholder dashes and the three attacker readouts hold
+ * prose; the skip link focused; HKDF derived and then pushed past RFC 5869's
+ * 255-block output cap so the panel takes its error branch; the PBKDF2
+ * iteration-chain slider at both ends (one link, then sixteen wrapping ones);
+ * PBKDF2 derived at 600k and benchmarked to 1M, with the inline assumptions
+ * `<details>` opened through its own summary; scrypt derived and compared
+ * across N=2^14..2^20 (which includes the "N too large for browser memory"
+ * branch); Argon2id derived at 19 MiB; the memory-hardness slider at both
+ * extremes — 4 cells and 128 — each then filled, which under reduced motion is
+ * the synchronous fill a motion-sensitive reader actually gets; the KDF chain
+ * run with three info strings and then with none, which is the only state that
+ * renders a root with no leaves; all four KDFs compared in one run, the only
+ * state that paints the amber `.cost-fill-warn` bar; every branch of the
+ * three-question decision fork; all four salt sub-demos; and the RFC vector
+ * run. Each attacker `<select>` is moved to its 95^12 option first, because
+ * that is the longest readout and so the widest `.attack-out`. Every one of
+ * those states is scanned, in both themes, at desktop and phone width.
+ *
+ * See `gate.ts` for why nothing is injected into the page, why no panel is
+ * force-revealed, why the lab's shipped defaults are asserted rather than
+ * assumed, and why `violations` is not the whole oracle.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations in ${theme} theme`, async ({ page }) => {
+    test.setTimeout(1_200_000);
+    const errors = watchPageErrors(page);
+    await boot(page, theme);
+    await driveAllStates(page, theme);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
+  });
 
-/** Kill animations/transitions/opacity so nothing paints mid-transition. */
-async function freeze(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content: `*,*::before,*::after{
-      animation-duration:0s!important;animation-delay:0s!important;
-      transition-duration:0s!important;transition-delay:0s!important;
-      scroll-behavior:auto!important;
-    }`,
+  test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
+    test.setTimeout(1_200_000);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(NARROW);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @380px`);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
   });
 }
-
-/** Expand every native <details> and reveal class-toggled / hidden panels. */
-async function revealAll(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    for (const d of Array.from(document.querySelectorAll('details'))) {
-      (d as HTMLDetailsElement).open = true;
-    }
-    for (const el of Array.from(document.querySelectorAll('[hidden]'))) {
-      el.removeAttribute('hidden');
-    }
-    for (const el of Array.from(
-      document.querySelectorAll<HTMLElement>('.accordion,.panel,.tab-panel'),
-    )) {
-      el.classList.add('open', 'active');
-    }
-  });
-}
-
-/**
- * Click every in-page demo button so async-rendered output (with its own
- * ARIA roles and colored badges/bars) exists in the DOM before we scan.
- * Skips the shared-header theme toggle so the theme stays as configured.
- */
-async function exercisePanels(page: Page): Promise<void> {
-  const buttons = page.locator('#app button.btn');
-  const count = await buttons.count();
-  for (let i = 0; i < count; i++) {
-    const btn = buttons.nth(i);
-    if (await btn.isVisible()) {
-      await btn.click().catch(() => {});
-    }
-  }
-  // Select a radio in each decision-tree question, then evaluate, so the
-  // decision-result region renders content.
-  const radios = page.locator('#app input[type="radio"]');
-  const rc = await radios.count();
-  for (let i = 0; i < rc; i++) {
-    await radios.nth(i).check().catch(() => {});
-  }
-  // Give the async KDFs (scrypt / Argon2id) time to resolve and paint.
-  await page.waitForTimeout(3000);
-}
-
-async function scan(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-  }));
-  expect(summary).toEqual([]);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await page.goto('.');
-  await freeze(page);
-  await revealAll(page);
-  await exercisePanels(page);
-  await revealAll(page);
-  await scan(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await page.goto('.');
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await freeze(page);
-  await revealAll(page);
-  await exercisePanels(page);
-  await revealAll(page);
-  await scan(page);
-});
-
-test('memory grid uses a true one-cell-per-MiB scale', async ({ page }) => {
-  await page.goto('.');
-  const slider = page.locator('#mem-cost');
-  await slider.fill('0');
-  await slider.dispatchEvent('input');
-  await expect(page.locator('#mem-grid .mem-cell')).toHaveCount(4);
-  await slider.fill('4');
-  await slider.dispatchEvent('input');
-  await expect(page.locator('#mem-grid .mem-cell')).toHaveCount(128);
-  await expect(page.locator('#mem-cap')).toContainText('1 MiB');
-});
