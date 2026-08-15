@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { boot, driveAllStates, NARROW, reportCollected, watchPageErrors } from './gate';
+import {
+  boot,
+  driveAllStates,
+  expectBaselineNotStale,
+  NARROW,
+  reportCollected,
+  watchPageErrors,
+} from './gate';
 
 /**
  * WCAG A/AA regression gate. Deploys are already gated on the RFC known-answer
@@ -27,6 +34,18 @@ import { boot, driveAllStates, NARROW, reportCollected, watchPageErrors } from '
  * See `gate.ts` for why nothing is injected into the page, why no panel is
  * force-revealed, why the lab's shipped defaults are asserted rather than
  * assumed, and why `violations` is not the whole oracle.
+ *
+ * `expectBaselineNotStale` is the non-text baseline's third rule — a listed
+ * finding that no longer appears fails, so a fixed entry must be deleted and
+ * the file can only shrink. It runs in the LIGHT configurations only, and that
+ * restriction is measured rather than stylistic. `nonTextSeen` is module state
+ * and `fullyParallel` gives every configuration its own worker, so each
+ * ratchets against what it alone drove. Run in isolation, each light
+ * configuration reaches all three baselined findings; each dark one reaches
+ * two, because `div.hkdf-op::before` is a generated-content failure only
+ * against the light surface. Dark's set is a strict subset, so running the
+ * rule in light loses no coverage, while running it in dark reported that
+ * entry as stale on every run.
  */
 
 for (const theme of ['dark', 'light'] as const) {
@@ -37,6 +56,7 @@ for (const theme of ['dark', 'light'] as const) {
     await driveAllStates(page, theme);
     expect(errors, errors.join('\n')).toEqual([]);
     reportCollected();
+    if (theme === 'light') expectBaselineNotStale();
   });
 
   test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
@@ -47,5 +67,6 @@ for (const theme of ['dark', 'light'] as const) {
     await driveAllStates(page, `${theme} @380px`);
     expect(errors, errors.join('\n')).toEqual([]);
     reportCollected();
+    if (theme === 'light') expectBaselineNotStale();
   });
 }
