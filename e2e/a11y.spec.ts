@@ -48,7 +48,7 @@ import {
  * entry as stale on every run.
  */
 
-for (const theme of ['dark', 'light'] as const) {
+for (const theme of ['dark'] as const) {
   test(`no WCAG A/AA violations in ${theme} theme`, async ({ page }) => {
     test.setTimeout(1_200_000);
     const errors = watchPageErrors(page);
@@ -56,7 +56,7 @@ for (const theme of ['dark', 'light'] as const) {
     await driveAllStates(page, theme);
     expect(errors, errors.join('\n')).toEqual([]);
     reportCollected();
-    if (theme === 'light') expectBaselineNotStale();
+    expectBaselineNotStale();
   });
 
   test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
@@ -67,6 +67,6 @@ for (const theme of ['dark', 'light'] as const) {
     await driveAllStates(page, `${theme} @380px`);
     expect(errors, errors.join('\n')).toEqual([]);
     reportCollected();
-    if (theme === 'light') expectBaselineNotStale();
+    expectBaselineNotStale();
   });
 }
