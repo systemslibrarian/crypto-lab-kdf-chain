@@ -12,5 +12,4 @@ export const NONTEXT_BASELINE: Record<
   { ratio: number; required: number; unverified: boolean }
 > = {
   "control-boundary|a.cl-btn": { ratio: 1.49, required: 3.0, unverified: false },
-  "generated-content|div.hkdf-op::before": { ratio: 4.02, required: 4.5, unverified: true }
 };
