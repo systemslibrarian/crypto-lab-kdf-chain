@@ -13,10 +13,10 @@
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
-    "@noble/hashes": "2.0.1"
+    "@noble/hashes": "2.3.0"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.10.2",
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "gh-pages": "latest",
     "typescript": "latest",
