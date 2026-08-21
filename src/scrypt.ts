@@ -20,6 +20,31 @@ export interface ScryptResult {
 }
 
 /**
+ * Ceiling on a single derivation's scrypt working set, in bytes.
+ *
+ * The budget is 1 GiB of RFC 7914 §2 working set — 128·N·r — which is exactly
+ * what this panel's top-of-range N=2^20 at r=8 asks for, and the largest
+ * allocation a browser tab can be expected to survive. Anything past it still
+ * throws, which is the "N too large for browser memory" branch the N-comparison
+ * panel renders.
+ *
+ * It has to be stated rather than left to @noble/hashes' default because that
+ * default (`1024**3 + 1024`) was sized with no margin for exactly this case,
+ * and the accounting underneath it moved. Through 2.0.1 noble charged
+ * `128·r·(N + p)`; from 2.2.0 it also counts its one shared `tmp` scratch
+ * block, `128·r·(N + p + 1)`. The same N=2^20, r=8, p=1 derivation therefore
+ * went 1024 bytes over a cap it used to land on precisely, and the 2^20 row of
+ * the comparison started reporting itself as too large for the browser. Nothing
+ * about the memory this demo asks for changed — only noble's tally of it — so
+ * noble's own overhead — the p parallel blocks and the scratch block, which are
+ * not part of the RFC's 128·N·r working set — is added on top of the budget
+ * rather than taken out of it.
+ */
+function scryptMaxmem(r: number, p: number): number {
+  return 1024 ** 3 + 128 * r * (p + 1);
+}
+
+/**
  * Derive key using scrypt.
  * Memory estimate: 128 × N × r bytes (per RFC 7914 §2)
  */
@@ -32,7 +57,9 @@ export async function deriveScrypt(
   dkLen: number,
 ): Promise<ScryptResult> {
   const t0 = performance.now();
-  const dk = await nobleScrypt(encoder.encode(password), encoder.encode(salt), { N, r, p, dkLen });
+  const dk = await nobleScrypt(encoder.encode(password), encoder.encode(salt), {
+    N, r, p, dkLen, maxmem: scryptMaxmem(r, p),
+  });
   const timeMs = performance.now() - t0;
   const memoryEstimateMB = (128 * N * r) / (1024 * 1024);
   return { hex: toHex(dk), timeMs, N, r, p, memoryEstimateMB };
