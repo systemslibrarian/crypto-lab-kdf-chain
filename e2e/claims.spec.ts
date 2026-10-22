@@ -382,6 +382,21 @@ test('scrypt: raising N raises both memory and time, in step', async ({ page }) 
 /*  Panel 4 — Argon2id                                                */
 /* ------------------------------------------------------------------ */
 
+test('Argon2id guidance cites its sources and scopes side-channel and parameter claims', async ({ page }) => {
+  await page.goto('.');
+  const note = page.locator('#panel-argon2 .info-box');
+  await expect(note).toContainText('first half');
+  await expect(note).toContainText('not a guarantee');
+  await expect(note).toContainText('as a minimum');
+  await expect(page.locator('#panel-argon2 .source-links a')).toHaveCount(3);
+  await expect(page.locator('#panel-argon2 .source-links a').first())
+    .toHaveAttribute('href', 'https://www.rfc-editor.org/rfc/rfc9106.html#section-1');
+  await expect(page.locator('#panel-argon2 .source-links a').last())
+    .toHaveAttribute('href', 'https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html');
+  await press(page, '#panel-decision', 'Get Recommendation');
+  await expect(page.locator('#decision-result .decision-reasoning')).toContainText('as a minimum');
+});
+
 test('Argon2id: tag length and memory readout follow the parameters given', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('.');

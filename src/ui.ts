@@ -660,15 +660,25 @@ function buildArgon2Panel(): HTMLElement {
   });
 
   const note = infoBox(
-    'Argon2id combines two memory-access styles: data-dependent (where to read next depends on the secret — harder for ' +
-    'GPUs, but the access pattern can leak via side-channels) and data-independent (a fixed, secret-free pattern — ' +
-    'side-channel safe, but a bit weaker against GPUs). ' +
-    'Argon2id uses the data-independent style for the first HALF of the first pass over memory and the data-dependent style for the rest (RFC 9106 §1) — the best of both. ' +
-    'OWASP recommends: t=2, m=19456 (19 MiB), p=1. Memory cost makes ASIC/GPU attacks economically impractical.'
+    'Argon2id uses data-independent memory access for the first half of its first pass, then data-dependent ' +
+    'access for the rest (RFC 9106 §1). This balances protection against memory-access side channels with ' +
+    'resistance to time-memory tradeoffs; it is not a guarantee that every implementation is free of side channels. ' +
+    'OWASP lists t=2, m=19456 KiB (19 MiB), p=1 as a minimum. Choose memory and time costs for your service ' +
+    'and threat model; higher costs raise the work per guess but do not make GPU or ASIC attacks impossible.'
+  );
+  const sources = el('p', { className: 'source-links' },
+    'Sources: ',
+    el('a', { href: 'https://www.rfc-editor.org/rfc/rfc9106.html#section-1' }, 'RFC 9106 §1'),
+    ' (design); ',
+    el('a', { href: 'https://www.rfc-editor.org/rfc/rfc9106.html#section-4' }, '§4'),
+    ' (parameter selection); ',
+    el('a', { href: 'https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html' },
+      'OWASP Password Storage Cheat Sheet'),
+    ' (minimum settings).',
   );
 
   return panel('panel-argon2',
-    heading, note, form, derivBtn, live, timing,
+    heading, note, sources, form, derivBtn, live, timing,
     outputBox('argon2-out', 'Derived Key (Argon2id)'),
     attackBox('argon2-attack'),
   );
@@ -1102,11 +1112,10 @@ function buildMemoryHardnessPanel(): HTMLElement {
   heading.querySelector('h2')!.id = 'panel-memory-title';
 
   const note = infoBox(
-    'A GPU is thousands of tiny, cheap compute cores. PBKDF2 is just hashing, so every core runs a separate ' +
-    'password guess in parallel — the attack scales almost for free. scrypt and Argon2id force each guess to ' +
-    'read and write a large block of memory in sequence. Memory bandwidth is shared and expensive, so the cores ' +
-    'sit idle waiting for the bus. You cannot cheaply buy more bandwidth — which is why memory-hard KDFs resist ' +
-    'GPUs and ASICs where PBKDF2 collapses. Turn up the memory cost below and watch the wait get worse.'
+    'PBKDF2 guesses can run in parallel on many GPU cores. scrypt and Argon2id require substantial memory ' +
+    'per guess, which raises the cost of parallel guessing. Turn up the memory setting to see this teaching ' +
+    'model change: its single bus and waiting cores illustrate a bottleneck, not measured GPU behavior or a ' +
+    'guarantee about the cost of an actual attack.'
   );
 
   // Memory-cost control. Steps map to real, meaningful memory sizes so the

@@ -54,8 +54,10 @@ export function decide(
     kdf: 'Argon2id',
     reasoning:
       'Argon2id (RFC 9106) is the recommended default for new password storage and password-based key derivation. ' +
-      'It combines data-dependent (Argon2d) and data-independent (Argon2i) memory access patterns, making it ' +
-      'resistant to both side-channel attacks and GPU/ASIC brute-force. OWASP recommends t=2, m=19456 (19 MiB), p=1.',
+      'Its first half-pass uses data-independent memory access, then data-dependent access for the remainder. ' +
+      'This balances memory-access side-channel protection with resistance to time-memory tradeoffs, without ' +
+      'guaranteeing a side-channel-free implementation. OWASP lists t=2, m=19456 KiB (19 MiB), p=1 as a ' +
+      'minimum; tune costs for your service and threat model.',
     chip: 'RECOMMENDED DEFAULT',
   };
 }

@@ -226,6 +226,15 @@ body {
   color: var(--text);
 }
 
+.source-links {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: -0.35rem 0 1rem;
+}
+
+.source-links a { color: var(--accent); }
+
 /* ---- Form inputs ---- */
 .panel-form {
   display: grid;
