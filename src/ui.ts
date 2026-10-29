@@ -145,7 +145,18 @@ function setOutput(id: string, text: string) {
 }
 
 function button(text: string, ariaLabel: string, onClick: () => void): HTMLElement {
-  const btn = el('button', { className: 'btn', 'aria-label': ariaLabel }, text);
+  // The accessible name opens with the button's own visible words. Every call
+  // site passes a longer description as `ariaLabel`, which is useful to a
+  // screen-reader user and, on its own, broke WCAG 2.5.3 Label in Name: axe
+  // 4.14 reports label-content-name-mismatch when the name does not CONTAIN
+  // the visible text, and "Get Recommendation" is nowhere in "Evaluate KDF
+  // decision tree". Composing them here fixes all eight buttons at once and
+  // keeps each description, rather than deleting the descriptions or editing
+  // eight call sites into near-duplicates of their own labels.
+  const name = ariaLabel.toLowerCase().includes(text.toLowerCase())
+    ? ariaLabel
+    : `${text}: ${ariaLabel.charAt(0).toLowerCase()}${ariaLabel.slice(1)}`;
+  const btn = el('button', { className: 'btn', 'aria-label': name }, text);
   btn.addEventListener('click', onClick);
   return btn;
 }
@@ -1248,7 +1259,7 @@ function buildFooter(): HTMLElement {
       className: 'github-badge',
       target: '_blank',
       rel: 'noopener noreferrer',
-      'aria-label': 'View source on GitHub',
+      'aria-label': 'GitHub: view source',
     }, '⬡ GitHub'),
     (() => {
       const related = el('nav', { className: 'cross-links', 'aria-label': 'Related demos' });
