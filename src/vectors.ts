@@ -60,14 +60,14 @@ export const vectors: { name: string; ref: string; run: () => Promise<VectorResu
   },
   {
     name: 'PBKDF2-HMAC-SHA-256',
-    ref: 'RFC 7914 §10 (c=1)',
+    ref: 'RFC 7914 §11 (c=1)',
     run: async () => {
       const expected =
         '55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc' +
         '49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783';
       const { hex } = await pbkdf2Sha256('passwd', 'salt', 1, 64);
       return [
-        { name: 'PBKDF2', ref: 'RFC 7914 §10', field: 'DK (64 B, c=1)', expected, got: hex, pass: hex === expected },
+        { name: 'PBKDF2', ref: 'RFC 7914 §11', field: 'DK (64 B, c=1)', expected, got: hex, pass: hex === expected },
       ];
     },
   },

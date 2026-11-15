@@ -22,7 +22,7 @@ export interface ScryptResult {
 /**
  * Ceiling on a single derivation's scrypt working set, in bytes.
  *
- * The budget is 1 GiB of RFC 7914 §2 working set — 128·N·r — which is exactly
+ * The budget is 1 GiB of RFC 7914 §§5-6 working set — 128·N·r — which is exactly
  * what this panel's top-of-range N=2^20 at r=8 asks for, and the largest
  * allocation a browser tab can be expected to survive. Anything past it still
  * throws, which is the "N too large for browser memory" branch the N-comparison
@@ -46,7 +46,7 @@ function scryptMaxmem(r: number, p: number): number {
 
 /**
  * Derive key using scrypt.
- * Memory estimate: 128 × N × r bytes (per RFC 7914 §2)
+ * Memory estimate: 128 × N × r bytes (per RFC 7914 §§5-6)
  */
 export async function deriveScrypt(
   password: string,

@@ -83,7 +83,7 @@ test('every RFC known-answer row passes, and each verdict matches its own bytes'
   const titles = parsed.map((r) => r.title).join(' | ');
   expect(titles).toContain('RFC 5869 TC1');
   expect(titles).toContain('RFC 5869 TC3');
-  expect(titles).toContain('RFC 7914 §10');
+  expect(titles).toContain('RFC 7914 §11');
 
   // And the "got" column is a real derivation: recompute RFC 5869 TC1's PRK
   // with WebCrypto from the RFC's own inputs and match what the page printed.

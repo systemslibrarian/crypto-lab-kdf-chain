@@ -618,7 +618,7 @@ function buildScryptPanel(): HTMLElement {
     'scrypt fills a big array of pseudorandom blocks, then reads them back in a password-dependent order that a GPU ' +
     'cannot predict or skip (RFC 7914 calls these steps ROMix — the fill-then-shuffle-read loop — and BlockMix — the ' +
     'per-block mixing function). Memory access patterns resist GPU attacks because GPUs have limited on-chip memory per ' +
-    'core. Memory estimate: 128 × N × r bytes (RFC 7914 §2).'
+    'core. Memory estimate: 128 × N × r bytes (RFC 7914 §§5-6).'
   );
 
   return panel('panel-scrypt',
