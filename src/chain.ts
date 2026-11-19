@@ -8,8 +8,11 @@
  *   root key --HKDF-Expand info="vault"--> storage key
  *
  * Argon2id does the expensive stretching once; HKDF-Expand then fans the
- * single root key out into as many cryptographically independent,
- * domain-separated keys as you need — cheaply.
+ * single root key out into one key per distinct info label — cheaply.
+ * Separation comes from the labels, not from the number of branches: two
+ * branches with the same root, the same output length and byte-identical
+ * info get byte-identical keys (RFC 5869 §2.3 — HKDF-Expand is a function
+ * of PRK, info and L only).
  */
 import { deriveArgon2id } from './argon2.ts';
 import { hkdfExpand } from './hkdf.ts';
@@ -19,6 +22,22 @@ const encoder = new TextEncoder();
 export interface ChainLink {
   info: string;
   keyHex: string;
+}
+
+/**
+ * Group branch indices whose info labels encode to identical bytes. With the
+ * same root and output length, HKDF-Expand is then given identical inputs, so
+ * those branches receive the same key. Returns one array of indices per
+ * repeated label (only groups of two or more); empty when every label differs.
+ */
+export function duplicateInfoGroups(infos: string[]): number[][] {
+  const byBytes = new Map<string, number[]>();
+  infos.forEach((info, i) => {
+    const k = Array.from(encoder.encode(info)).join(',');
+    const g = byBytes.get(k);
+    if (g) g.push(i); else byBytes.set(k, [i]);
+  });
+  return [...byBytes.values()].filter(g => g.length > 1);
 }
 
 export interface ChainResult {

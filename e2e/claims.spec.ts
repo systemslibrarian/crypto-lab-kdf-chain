@@ -529,6 +529,63 @@ test('KDF chain: every leaf is HKDF-Expand of the root it hangs from', async ({ 
   expect(argon / total).toBeGreaterThan(0.5);
 });
 
+test('KDF chain: same label, same key — duplicates are flagged, not counted as separate', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('.');
+  // Expected outcome from RFC 5869 §2.3, not from the page: HKDF-Expand is a
+  // function of (PRK, info, L), so identical info under one root is one key.
+  await page.locator('#chain-info1').fill('archive');
+  await page.locator('#chain-info3').fill('archive');
+  await press(page, '#panel-chain', 'Run the Chain');
+  await expect(page.locator('#chain-flow .chain-node')).toHaveCount(5, { timeout: 120_000 });
+
+  const leaves = await page.locator('#chain-flow .chain-leaf').evaluateAll((els) =>
+    els.map((e) => ({
+      dup: e.classList.contains('chain-leaf-dup'),
+      value: (e.querySelector('.chain-node-value')?.textContent ?? '').trim(),
+      sub: (e.querySelector('.chain-node-sub')?.textContent ?? '').trim(),
+    })),
+  );
+  const rootHex = (await page.locator('#chain-flow .chain-root .chain-node-value').textContent())!.trim();
+
+  // Both outputs stay visible, and the bytes really are identical…
+  expect(leaves).toHaveLength(3);
+  expect(leaves[0].value).toBe(leaves[2].value);
+  expect(leaves[1].value).not.toBe(leaves[0].value);
+  // …and equal an independent recomputation of HKDF-Expand(root, "archive", 32).
+  const ref = await page.evaluate(async (rh) => {
+    const unhex = (h: string) => new Uint8Array(h.match(/../g)!.map((p) => parseInt(p, 16)));
+    const key = await crypto.subtle.importKey('raw', unhex(rh), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const i = new TextEncoder().encode('archive');
+    const msg = new Uint8Array(i.length + 1);
+    msg.set(i, 0);
+    msg[i.length] = 1;
+    const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, msg));
+    return Array.from(sig).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }, rootHex);
+  expect(leaves[0].value).toBe(ref);
+
+  // The affected branches are flagged; the distinct one is not.
+  expect(leaves.map((l) => l.dup)).toEqual([true, false, true]);
+  expect(leaves[0].sub).toContain('same key');
+  expect(leaves[1].sub).not.toContain('same key');
+  await expect(page.locator('#chain-flow .chain-dup-warning')).toContainText('Same label, same key.');
+  await expect(page.locator('#chain-flow .chain-dup-warning')).toContainText('Use distinct purpose labels to derive separate keys.');
+  // Not counted as independent: the count reflects distinct keys, for sighted and screen-reader users alike.
+  await expect(page.locator('#chain-timing')).toContainText('(3 branches, 2 distinct keys from one password)');
+  await expect(page.locator('#chain-live')).toContainText('only 2 distinct keys');
+  await expect(page.locator('#chain-live')).toContainText('same label, same key', { ignoreCase: true });
+
+  // Make the labels distinct again and the warning goes away.
+  await page.locator('#chain-info3').fill('vault storage key');
+  await page.locator('#chain-flow').evaluate((e) => { e.innerHTML = ''; });
+  await press(page, '#panel-chain', 'Run the Chain');
+  await expect(page.locator('#chain-flow .chain-node')).toHaveCount(5, { timeout: 120_000 });
+  await expect(page.locator('#chain-flow .chain-dup-warning')).toHaveCount(0);
+  await expect(page.locator('#chain-flow .chain-leaf-dup')).toHaveCount(0);
+  await expect(page.locator('#chain-timing')).toContainText('(3 keys from one password)');
+});
+
 test('KDF chain: changing one info string changes only that key', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('.');

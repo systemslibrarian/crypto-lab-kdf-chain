@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { vectors } from '../src/vectors.ts';
 import { hkdf } from '../src/hkdf.ts';
 import { pbkdf2Sha256, pbkdf2Chain } from '../src/pbkdf2.ts';
-import { deriveChain } from '../src/chain.ts';
+import { deriveChain, duplicateInfoGroups } from '../src/chain.ts';
 import { decide } from '../src/decision.ts';
 import { demoNoSalt, demoWithSalt } from '../src/salt.ts';
 import {
@@ -59,6 +59,22 @@ test('the chain fans one password into independent, domain-separated keys', asyn
   assert.equal(new Set(keys).size, 3, 'all derived keys are distinct');
   const again = await deriveChain('pw', 'salt-1234', infos, fast);
   assert.deepEqual(again.links.map(l => l.keyHex), keys, 'chain is deterministic');
+});
+
+test('same label, same key: a repeated info string does not give a separate key', async () => {
+  // RFC 5869 §2.3: HKDF-Expand depends only on PRK, info and L. Same root,
+  // same info bytes, same length → same output. Separate branches are not
+  // separate keys.
+  const fast = { t: 1, m: 1024, p: 1 };
+  const r = await deriveChain('pw', 'salt-1234', ['archive', 'MAC key', 'archive'], fast);
+  assert.equal(r.links[0].keyHex, r.links[2].keyHex, 'identical labels → identical keys');
+  assert.notEqual(r.links[0].keyHex, r.links[1].keyHex, 'distinct label → different key');
+  assert.deepEqual(duplicateInfoGroups(['archive', 'MAC key', 'archive']), [[0, 2]]);
+  assert.deepEqual(duplicateInfoGroups(['encryption key', 'MAC key', 'vault storage key']), []);
+  // Grouping is by encoded bytes: a trailing space is a different label and a different key.
+  assert.deepEqual(duplicateInfoGroups(['archive', 'archive ']), []);
+  const sp = await deriveChain('pw', 'salt-1234', ['archive', 'archive '], fast);
+  assert.notEqual(sp.links[0].keyHex, sp.links[1].keyHex);
 });
 
 test('salt demos behave as taught', async () => {

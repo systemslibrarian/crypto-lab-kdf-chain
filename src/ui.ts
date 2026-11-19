@@ -9,7 +9,7 @@ import { deriveScrypt } from './scrypt.ts';
 import { deriveArgon2id } from './argon2.ts';
 import { decide, comparisonTable, type DecisionResult } from './decision.ts';
 import { demoNoSalt, demoWithSalt, demoContextBinding, demoDomainSeparation } from './salt.ts';
-import { deriveChain } from './chain.ts';
+import { deriveChain, duplicateInfoGroups } from './chain.ts';
 import { vectors } from './vectors.ts';
 import {
   pbkdf2Attack, scryptAttack, argon2Attack,
@@ -862,6 +862,10 @@ function buildChainPanel(): HTMLElement {
   const timing = timingDisplay('chain-timing');
   const flow = el('div', { id: 'chain-flow', className: 'chain-flow', 'aria-live': 'polite' });
 
+  const predict = el('p', { className: 'chain-predict' },
+    'Predict first: if two branches both say "archive", will they get different keys? ' +
+    'Type the same info string into two boxes and run the chain to check.');
+
   const runBtn = button('Run the Chain', 'Run the KDF chain: Argon2id then HKDF-Expand fan-out', async () => {
     const pw = (document.getElementById('chain-pw') as HTMLInputElement).value;
     const salt = (document.getElementById('chain-salt') as HTMLInputElement).value;
@@ -872,6 +876,14 @@ function buildChainPanel(): HTMLElement {
     clearError('chain-timing');
     try {
       const r = await deriveChain(pw, salt, infos);
+      // Branches whose labels encode to the same bytes get the same HKDF-Expand
+      // inputs (same root, same info, same length) and therefore the same key.
+      // They are flagged, not counted as separate keys.
+      const groups = duplicateInfoGroups(r.links.map(l => l.info));
+      const dupOf = new Map<number, number[]>();
+      for (const g of groups) for (const i of g) dupOf.set(i, g);
+      const distinct = new Set(r.links.map(l => l.keyHex)).size;
+
       flow.innerHTML = '';
       flow.append(
         chainNode('step', 'Password', pw || '(empty)', 'low entropy — must be stretched'),
@@ -879,12 +891,29 @@ function buildChainPanel(): HTMLElement {
         chainNode('root', 'Root key', r.rootHex, `expensive step, done once · ${r.argonTimeMs.toFixed(1)} ms`),
         chainArrow('HKDF-Expand  —  cheap, one call per context (info string)'),
         el('div', { className: 'chain-fanout' },
-          ...r.links.map(link =>
-            chainNode('leaf', `info = "${link.info}"`, link.keyHex, 'independent, domain-separated'))),
+          ...r.links.map((link, i) => {
+            const g = dupOf.get(i);
+            if (!g) return chainNode('leaf', `info = "${link.info}"`, link.keyHex, 'distinct label · separate key');
+            const others = g.filter(j => j !== i).map(j => `branch ${j + 1}`).join(' and ');
+            return chainNode('leaf chain-leaf-dup', `info = "${link.info}"`, link.keyHex,
+              `Same label as ${others} — same key, not a separate one`);
+          })),
       );
-      document.getElementById('chain-timing')!.textContent =
-        `Whole chain: ${r.totalTimeMs.toFixed(2)} ms (${r.links.length} keys from one password)`;
-      announce('chain-live', `Chain complete. ${r.links.length} independent keys derived in ${r.totalTimeMs.toFixed(0)} milliseconds`);
+      if (groups.length > 0) {
+        const which = groups.map(g => `branches ${g.map(i => i + 1).join(' and ')} ("${r.links[g[0]].info}")`).join('; ');
+        flow.append(el('p', { className: 'chain-dup-warning', role: 'note' },
+          `Same label, same key. ${which} share an identical info string, so HKDF-Expand received identical inputs ` +
+          'and returned identical key bytes. Use distinct purpose labels to derive separate keys.'));
+        document.getElementById('chain-timing')!.textContent =
+          `Whole chain: ${r.totalTimeMs.toFixed(2)} ms (${r.links.length} branches, ${distinct} distinct keys from one password)`;
+        announce('chain-live',
+          `Chain complete. ${r.links.length} branches but only ${distinct} distinct keys: same label, same key for ${which}. ` +
+          'Use distinct purpose labels to derive separate keys.');
+      } else {
+        document.getElementById('chain-timing')!.textContent =
+          `Whole chain: ${r.totalTimeMs.toFixed(2)} ms (${r.links.length} keys from one password)`;
+        announce('chain-live', `Chain complete. ${r.links.length} separate keys from distinct labels, derived in ${r.totalTimeMs.toFixed(0)} milliseconds`);
+      }
     } catch (err) {
       showError('chain-timing', 'chain-live', err);
     }
@@ -893,11 +922,12 @@ function buildChainPanel(): HTMLElement {
   const note = infoBox(
     'This is the pattern the project is named for, and how TLS 1.3, Signal, and password vaults actually work. ' +
     'Argon2id pays the expensive, memory-hard cost once to turn a weak password into a high-entropy root key. ' +
-    'HKDF-Expand then cheaply fans that root out into as many independent keys as you need — one per context — ' +
-    'so a leak of the MAC key can never expose the encryption key. Change any info string and that key changes completely.'
+    'HKDF-Expand then cheaply fans that root out into one key per distinct context label — ' +
+    'so a leak of the MAC key does not expose the encryption key. Change any info string and that key changes completely. ' +
+    'The separation comes from the labels: two branches with the same label get the same key.'
   );
 
-  return panel('panel-chain', heading, note, form, runBtn, live, timing, flow);
+  return panel('panel-chain', heading, note, form, predict, runBtn, live, timing, flow);
 }
 
 let chainNodeSeq = 0;
@@ -1096,7 +1126,7 @@ function buildGuide(): HTMLElement {
     ['#panel-hkdf', 'Start with the split', 'Every KDF answers one of two needs: expand a high-entropy secret (HKDF) or stretch a low-entropy password. See HKDF first.'],
     ['#panel-pbkdf2', 'Stretch a password', 'Try PBKDF2, then scrypt and Argon2id. Watch the derivation time — and the attacker-cost line beneath each.'],
     ['#panel-memory', 'See why memory wins', 'Understand why scrypt and Argon2id beat GPUs where PBKDF2 fails: the memory-hardness visual.'],
-    ['#panel-chain', 'Build the real thing', 'The KDF chain: stretch a password once with Argon2id, then fan it out into many independent keys with HKDF.'],
+    ['#panel-chain', 'Build the real thing', 'The KDF chain: stretch a password once with Argon2id, then fan it out with HKDF into one key per distinct purpose label.'],
     ['#panel-cost', 'Compare the costs', 'Run one password through every KDF and compare your cost against the attacker’s.'],
     ['#panel-vectors', 'Prove it’s real', 'Recompute the RFCs’ own test vectors in your browser, checked byte-for-byte.'],
   ];

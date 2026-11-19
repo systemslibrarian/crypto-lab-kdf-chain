@@ -584,6 +584,17 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   });
   await scan(page, `${theme} / chain run`);
 
+  // Duplicate labels: the flagged same-key state must also pass the gate.
+  const info1 = await page.locator('#chain-info1').inputValue();
+  const info2 = await page.locator('#chain-info2').inputValue();
+  await page.locator('#chain-info2').fill(info1);
+  await run(page, '#panel-chain .btn', async () => {
+    await expect(page.locator('#chain-flow .chain-leaf-dup')).toHaveCount(2);
+    await expect(page.locator('#chain-flow .chain-dup-warning')).toHaveCount(1);
+  });
+  await scan(page, `${theme} / chain run with a duplicate label`);
+  await page.locator('#chain-info2').fill(info2);
+
   // Emptying every info string is the branch that fans out to nothing: the
   // root key is still derived but no leaf is.
   for (const id of ['#chain-info1', '#chain-info2', '#chain-info3']) {

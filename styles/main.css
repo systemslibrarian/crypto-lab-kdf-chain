@@ -707,6 +707,34 @@ select.input-field {
   color: var(--text-muted);
 }
 
+.chain-leaf-dup {
+  border-color: var(--error);
+  border-left: 3px solid var(--error);
+  background-color: color-mix(in srgb, var(--error) 8%, var(--bg));
+}
+
+.chain-leaf-dup .chain-node-sub {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.chain-dup-warning {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--error) 40%, var(--border));
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius);
+  background-color: color-mix(in srgb, var(--error) 8%, var(--bg));
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.chain-predict {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
 .chain-arrow {
   display: flex;
   align-items: center;
